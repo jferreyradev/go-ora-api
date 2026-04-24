@@ -1,0 +1,22 @@
+# Archivos y carpetas a ignorar para proyectos Go
+# Binarios
+oracle-api
+oracle-api.exe
+go-oracle-api
+go-oracle-api.exe
+go-oracle-api-async.exe
+*.exe
+*.out
+*.test
+
+# Archivos temporales y de sistema
+log
+*.log
+*.tmp
+*.swp
+.DS_Store
+Thumbs.db
+
+# Archivos de entorno y configuración sensible
+.env
+*.env
