@@ -111,7 +111,8 @@ curl -X POST http://localhost:3000/procedure \
     ]
   }'
 ```
-Respuesta:
+
+**Respuesta:**
 ```json
 {
   "status": "ok",
@@ -177,12 +178,11 @@ curl http://localhost:3000/logs \
 
 ---
 
-## � Ejemplos Completos
+## 📚 Ejemplos Completos
 
 ### Ejemplo 1: Consulta simple
 
 ```javascript
-// Hacer consulta directa a la API
 const queryRes = await fetch('http://localhost:3000/query', {
   method: 'POST',
   headers: {
@@ -256,7 +256,7 @@ const headers = {
 
 // CREATE
 await fetch('http://localhost:3000/exec', {
-  method: 'POST',3
+  method: 'POST',
   headers,
   body: JSON.stringify({
     query: "INSERT INTO productos (nombre, precio) VALUES ('Laptop', 999.99)"
@@ -291,76 +291,20 @@ await fetch('http://localhost:3000/exec', {
 });
 ```
 
-### Ejemplo 4: Procedimiento con múltiples parámetros
-
-```javascript
-const token = "...";
-
-const res = await fetch('http://localhost:8000/procedure', {
-  method: 'POST',
-  headers: {
-    'Authorization': `Bearer ${token}`,
-    'Content-Type': 'application/json'
-  },
-  body: JSON.stringify({
-    name: 'PROC_TEST_PARAMS',
-    params: [
-      { name: 'p_number', value: 100, direction: 'IN', type: 'NUMBER' },
-      { name: 'p_varchar', value: 'test', direction: 'IN', type: 'STRING' },
-      { name: 'p_date', value: '2024-12-16', direction: 'IN', type: 'DATE' },
-      { name: 'p_result', direction: 'OUT', type: 'STRING' }
-    ]
-  })
-});
-
-const result = await res.json();
-console.log(result.out); // { p_result: "..." }
-```
-
 ---
 
-## 🧪 Tests y Ejemplos
+## 🆘 Troubleshooting
 
-### Ejemplo completo
-```bash
-node examples/ejemplo_completo.js
-```
+### Problema: "Connection refused"
+- Verificar que Oracle está corriendo
+- Verificar credenciales en `.env`
+- Ver [docs/DEPLOYMENT.md](../deployment/DEPLOYMENT.md)
 
-### Suite de tests
-```bash
-# Ejecutar todos los tests
-node tests/test.js
+### Problema: "Unauthorized"
+- Verificar token en Authorization header
+- Token debe coincidir con `API_TOKEN` en `.env`
 
-# Test específico
-node tests/test.js query
-node tests/test.js procedure
-node tests/test.js async
-```
+### Problema: "ORA-01017: invalid username/password"
+- Verificar credenciales Oracle en `.env`
 
----
-
-## 📚 Documentación
-
-- **[README.md](README.md)** - Documentación principal
-- **[ESTRUCTURA.md](ESTRUCTURA.md)** - Estructura del proyecto
-- **[docs/ASYNC_JOBS.md](docs/ASYNC_JOBS.md)** - Sistema de jobs
-- **[docs/USO_Y_PRUEBAS.md](docs/USO_Y_PRUEBAS.md)** - Guía de uso
-- **[docs/CONFIGURACION_ENV.md](docs/CONFIGURACION_ENV.md)** - Configuración
-
----
-
-## 🚨 Troubleshooting
-
-### Error: "Unauthorized"
-```bash
-curl http://localhost:3000/ping -H "Authorization: Bearer test1"
-```
-
-### Error: "Procedimiento no encontrado"
-```bash
-sqlplus user/pass@db @sql/create_test_procedures.sql
-```
-
----
-
-**Versión:** 2.1 | **Fecha:** 7 de enero de 2026
+Para más ayuda, ver [Índice de Documentación](../INDEX.md)

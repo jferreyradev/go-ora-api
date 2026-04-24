@@ -1,102 +1,77 @@
 # Go Oracle API Microservicio
 
-Este microservicio en Go expone endpoints HTTP para consultar y modificar una base de datos Oracle, pensado como puente entre Oracle y otras APIs.
+Puente HTTP seguro y ligero entre Oracle y tus aplicaciones.
 
-## Resumen
+## 🚀 Inicio Rápido
 
-En muchos entornos de desarrollo, diferentes aplicaciones necesitan acceder a datos almacenados en bases de datos Oracle. Sin embargo, integrar directamente con Oracle suele requerir la instalación de drivers o librerías específicos en cada entorno, lo que complica la interoperabilidad y el despliegue.
+**Documentación completa en:** [📚 docs/INDEX.md](docs/INDEX.md) ⭐
 
-Este microservicio resuelve ese problema actuando como un puente seguro y ligero entre una base de datos Oracle y otras aplicaciones, exponiendo endpoints HTTP para consultas y modificaciones. Así, cualquier sistema capaz de realizar peticiones HTTP/JSON puede interactuar con Oracle sin necesidad de instalar librerías, drivers ni configuraciones adicionales de Oracle en el cliente.
+### 5 Minutos para Empezar
 
-## Ventajas principales
-- Acceso centralizado a Oracle mediante HTTP.
-- No requiere que los sistemas consumidores instalen librerías de Oracle.
-- Permite la integración de APIs y servicios hechos en cualquier lenguaje o framework.
-- Permite operaciones de consulta y modificación (SELECT, INSERT, UPDATE, DELETE) a través de una API REST.
-- **Soporte completo para procedimientos y funciones de paquetes Oracle**.
-- **Soporte para múltiples parámetros OUT** - Devuelve correctamente todos los parámetros de salida (NUMBER, VARCHAR2, DATE).
-- **Campo `schema` separado** para especificar el esquema sin ambigüedad.
-- **Detección automática de tipos de datos** para parámetros OUT (NUMBER, VARCHAR2).
-- **Manejo inteligente de fechas** con conversión automática desde formatos estándar.
-- **Consultas multilínea** con normalización automática de saltos de línea.
-- Facilita la integración de sistemas modernos (microservicios, aplicaciones web/móviles, otros servicios) con bases de datos Oracle.
-- Seguridad mediante autenticación de token y restricción opcional por IP.
-- **CORS configurado** para integración desde aplicaciones web frontend.
-- Reduce el riesgo de exposición de credenciales o la base de datos a múltiples sistemas.
+```bash
+# 1. Configurar
+cp .env.example .env
+# Editar .env con credenciales Oracle
 
-## Configuración del archivo `.env`
-
-Consulta la guía completa para crear y configurar el archivo de entorno en [`docs/CONFIGURACION_ENV.md`](docs/CONFIGURACION_ENV.md).
-
-## Ejecución
-
-Puedes ejecutar el microservicio de dos formas:
-
-### 1. Desde Go (modo desarrollo)
-
-```sh
-go run main.go [archivo_env] [puerto]
-```
-- `archivo_env` (opcional): Archivo de variables de entorno (por defecto `.env`).
-- `puerto` (opcional): Puerto donde escuchará la API (por defecto `8080`).
-
-Ejemplos:
-```sh
+# 2. Iniciar
 go run main.go
-# o con archivo y puerto personalizados
-go run main.go otro.env 9090
+# o usar: ./go-oracle-api.exe
+
+# 3. Probar
+curl http://localhost:3000/ping \
+  -H "Authorization: Bearer test1"
 ```
 
-### 2. Como ejecutable compilado
+## 📚 Documentación
 
-Primero compila el binario:
-```sh
-go build -o go-oracle-api.exe main.go
-```
-Luego ejecútalo:
-```sh
-./go-oracle-api.exe [archivo_env] [puerto]
-```
+**👉 [Abre docs/INDEX.md](docs/INDEX.md)** para:
+- Guías por rol (Principiante, Desarrollador, DevOps, Release Manager)
+- Búsqueda rápida de información
+- Rutas recomendadas de lectura
+- Todos los archivos de documentación
 
-También puedes usar variables de entorno:
-- `ENV_FILE` para el archivo de configuración
-- `PORT` para el puerto
+## ✨ Características
 
-Ejemplo:
-```sh
-set ENV_FILE=otro.env
-set PORT=9090
-./go-oracle-api.exe
-```
+✅ API RESTful para Oracle  
+✅ Procedimientos y Funciones con IN/OUT  
+✅ Múltiples OUT parameters (FIXED en v1.0.0)  
+✅ Jobs Asíncronos  
+✅ Autenticación + Restricción de IPs  
+✅ Manejo automático de tipos (NUMBER, VARCHAR2, DATE)  
 
-## Opciones de ejecución
-- Si no se especifica archivo de entorno ni puerto, se usan `.env` y `8080` por defecto.
-- Puedes combinar argumentos y variables de entorno según tu preferencia.
+## 📦 Contenido
 
-### Ejecutar varias instancias con diferentes configuraciones
+- `main.go` - Código fuente (~2000 líneas)
+- `go-oracle-api.exe` - Ejecutable compilado
+- `examples/` - Ejemplos de uso
+- `sql/` - Scripts de setup
+- `docs/` - Documentación completa
 
-Puedes tener varios archivos `.env` (por ejemplo, `.env1`, `.env2`, etc.) y ejecutar varias instancias de la app, cada una con su propio archivo, puerto y nombre identificativo:
+## 📋 Requisitos
 
-#### Método manual:
-```sh
-# Ventana 1 - Producción
-go run main.go .env1 8081 "Produccion"
+- Go 1.20+ o ejecutable precompilado
+- Oracle 11g o superior
+- .env configurado
 
-# Ventana 2 - Testing  
-go run main.go .env2 8082 "Testing"
+## 🎯 Búsqueda Rápida
 
-# Ventana 3 - Desarrollo
-go run main.go .env3 8083 "Desarrollo"
-```
+| Necesito | Ver |
+|----------|-----|
+| Instalar rápido | [docs/getting-started/QUICKSTART.md](docs/getting-started/QUICKSTART.md) |
+| Ejemplos de código | [docs/getting-started/GUIA_RAPIDA.md](docs/getting-started/GUIA_RAPIDA.md) |
+| Configurar .env | [docs/getting-started/CONFIGURACION.md](docs/getting-started/CONFIGURACION.md) |
+| API Reference | [docs/api-reference/ENDPOINTS.md](docs/api-reference/ENDPOINTS.md) |
+| Desplegar producción | [docs/deployment/DEPLOYMENT.md](docs/deployment/DEPLOYMENT.md) |
+| Publicar en GitHub | [docs/release/PUBLISH_GUIDE.md](docs/release/PUBLISH_GUIDE.md) |
+| **Todo lo anterior** | **[docs/INDEX.md](docs/INDEX.md)** ⭐ |
 
-#### Con ejecutable compilado:
-```sh
-go build -o go-oracle-api.exe main.go
+## 📝 Licencia
 
-start go-oracle-api.exe .env1 8081 "Produccion"
-start go-oracle-api.exe .env2 8082 "Testing" 
-start go-oracle-api.exe .env3 8083 "Desarrollo"
-```
+MIT License - Ver [LICENSE](LICENSE)
+
+---
+
+**Comienza aquí:** [📚 docs/INDEX.md](docs/INDEX.md)
 
 #### Script automatizado:
 ```bash

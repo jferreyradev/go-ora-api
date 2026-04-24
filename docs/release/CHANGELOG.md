@@ -1,6 +1,8 @@
-# Changelog
+# 📋 Changelog
 
-Todos los cambios notables en este proyecto serán documentados en este archivo.
+Historial de todas las versiones de Go Oracle API
+
+---
 
 ## [1.0.0] - 2026-04-24
 
@@ -54,11 +56,6 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 - Oracle 11g o superior
 - .env configurado con credenciales
 
-#### 📝 Notas de Instalación
-1. Configurar `.env` con credenciales Oracle
-2. Ejecutar scripts SQL: `create_async_jobs_table.sql`, `create_query_log_table.sql`
-3. Ejecutar binario: `./go-oracle-api.exe`
-
 ---
 
 ## Próximas Versiones (Roadmap)
@@ -74,3 +71,14 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 - [ ] Rate limiting por IP
 - [ ] Audit trail completo
 - [ ] Encriptación de credenciales en tránsito
+
+### v1.3.0 (Planned)
+- [ ] Soporte para múltiples conexiones Oracle
+- [ ] Failover automático
+- [ ] Query caching distribuido
+- [ ] Métricas OpenTelemetry
+
+---
+
+**Licencia:** MIT  
+**Status:** ✅ Stable
