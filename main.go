@@ -1604,87 +1604,175 @@ func asyncProcedureHandler(w http.ResponseWriter, r *http.Request) {
 		outDateMap := make(map[int]*sql.NullTime)
 
 		if req.IsFunction {
-			outIdx := 0
+			// Buscar el primer parámetro OUT (valor de retorno)
+			retIndex := -1
+			for i, p := range req.Params {
+				if strings.ToUpper(p.Direction) == "OUT" {
+					retIndex = i
+					break
+				}
+			}
+			if retIndex == -1 {
+				endTime := time.Now()
+				jobManager.UpdateJob(job.ID, func(j *AsyncJob) {
+					j.Status = JobStatusFailed
+					j.Error = "Debe incluir un parámetro OUT para el valor de retorno"
+					j.EndTime = &endTime
+					j.Duration = endTime.Sub(j.StartTime).String()
+					j.Progress = 100
+				})
+				return
+			}
+
+			// El retorno de la función siempre va en :1
 			placeholders = append(placeholders, ":1")
-			ptr := new(string)
-			*ptr = ""
-			outBuffers[outIdx] = ptr
-			args = append(args, sql.Out{Dest: ptr})
-			outIndexes = append(outIndexes, "return_value")
-		}
 
-		for _, p := range req.Params {
-			if p.Direction == "OUT" {
-				outIdx := len(outIndexes)
-				placeholders = append(placeholders, fmt.Sprintf(":%d", len(placeholders)+1))
+			// Procesar el valor de retorno con detección de tipo
+			p := req.Params[retIndex]
+			lowerName := strings.ToLower(p.Name)
+			isDate := strings.ToLower(p.Type) == "date"
+			isNum := strings.ToLower(p.Type) == "number" ||
+				strings.Contains(lowerName, "resultado") || strings.Contains(lowerName, "result") ||
+				strings.Contains(lowerName, "total") || strings.Contains(lowerName, "count") ||
+				strings.Contains(lowerName, "suma") || strings.Contains(lowerName, "num") ||
+				strings.Contains(lowerName, "int") || strings.Contains(lowerName, "id")
 
-				// Verificar tipo expl├¡cito o inferir por nombre
-				pType := strings.ToLower(p.Type)
-				pNameLower := strings.ToLower(p.Name)
-				isDate := pType == "date"
-				isNumber := false
+			outIndexes = append(outIndexes, p.Name)
 
-				if !isDate {
-					if pType == "number" || pType == "integer" || pType == "float" {
-						isNumber = true
-					} else if pType == "" {
-						numberKeywords := []string{"resultado", "result", "total", "count", "suma", "num", "int", "id"}
-						for _, kw := range numberKeywords {
-							if strings.Contains(pNameLower, kw) {
-								isNumber = true
-								break
-							}
-						}
-					}
-				}
-
-				if isDate {
-					datePtr := new(sql.NullTime)
-					outDateMap[outIdx] = datePtr
-					args = append(args, sql.Out{Dest: datePtr})
-				} else if isNumber {
-					numPtr := new(sql.NullFloat64)
-					outNumMap[outIdx] = numPtr
-					args = append(args, sql.Out{Dest: numPtr})
-				} else {
-					ptr := new(string)
-					*ptr = strings.Repeat(" ", 4000)
-					outBuffers[outIdx] = ptr
-					args = append(args, sql.Out{Dest: ptr})
-				}
-				outIndexes = append(outIndexes, p.Name)
+			if isDate {
+				datePtr := new(sql.NullTime)
+				outDateMap[0] = datePtr
+				args = append(args, sql.Out{Dest: datePtr, In: false})
+			} else if isNum {
+				numPtr := new(sql.NullFloat64)
+				outNumMap[0] = numPtr
+				args = append(args, sql.Out{Dest: numPtr, In: false})
 			} else {
-				placeholders = append(placeholders, fmt.Sprintf(":%d", len(placeholders)+1))
+				ptr := new(string)
+				*ptr = strings.Repeat(" ", 4000)
+				outBuffers[0] = ptr
+				args = append(args, sql.Out{Dest: ptr, In: false})
+			}
 
-				// Verificar si es fecha por tipo explícito o por nombre
-				pTypeLower := strings.ToLower(p.Type)
-				pNameLower := strings.ToLower(p.Name)
-				isDateType := pTypeLower == "date"
-				isDateName := strings.Contains(pNameLower, "fecha") || strings.Contains(pNameLower, "periodo")
+			// Procesar resto de parámetros
+			paramPos := 2
+			outIdx := 1
+			for i, p := range req.Params {
+				if i == retIndex {
+					continue
+				}
+				placeholders = append(placeholders, fmt.Sprintf(":%d", paramPos))
 
-				if isDateType || isDateName {
-					// Intentar parsear como fecha usando parseDateParam
-					if parsedTime, err := parseDateParam(p.Value); err == nil {
-						args = append(args, parsedTime)
+				if strings.ToUpper(p.Direction) == "OUT" {
+					lowerName := strings.ToLower(p.Name)
+					isDate := strings.ToLower(p.Type) == "date"
+					isNum := strings.ToLower(p.Type) == "number" ||
+						strings.Contains(lowerName, "resultado") || strings.Contains(lowerName, "result") ||
+						strings.Contains(lowerName, "total") || strings.Contains(lowerName, "count") ||
+						strings.Contains(lowerName, "suma") || strings.Contains(lowerName, "num") ||
+						strings.Contains(lowerName, "int") || strings.Contains(lowerName, "id")
+
+					outIndexes = append(outIndexes, p.Name)
+
+					if isDate {
+						datePtr := new(sql.NullTime)
+						outDateMap[outIdx] = datePtr
+						args = append(args, sql.Out{Dest: datePtr, In: false})
+					} else if isNum {
+						numPtr := new(sql.NullFloat64)
+						outNumMap[outIdx] = numPtr
+						args = append(args, sql.Out{Dest: numPtr, In: false})
 					} else {
-						// Si falla, loguear y usar valor original
-						log.Printf("[ASYNC_PROCEDURE] Advertencia al parsear fecha en parámetro '%s': %v", p.Name, err)
+						ptr := new(string)
+						*ptr = strings.Repeat(" ", 4000)
+						outBuffers[outIdx] = ptr
+						args = append(args, sql.Out{Dest: ptr, In: false})
+					}
+					outIdx++
+				} else {
+					// Parámetro IN
+					pTypeLower := strings.ToLower(p.Type)
+					pNameLower := strings.ToLower(p.Name)
+					isDateType := pTypeLower == "date"
+					isDateName := strings.Contains(pNameLower, "fecha") || strings.Contains(pNameLower, "periodo")
+
+					if isDateType || isDateName {
+						if parsedTime, err := parseDateParam(p.Value); err == nil {
+							args = append(args, parsedTime)
+						} else {
+							log.Printf("[ASYNC_PROCEDURE] Advertencia al parsear fecha en parámetro '%s': %v", p.Name, err)
+							args = append(args, p.Value)
+						}
+					} else {
 						args = append(args, p.Value)
 					}
+				}
+				paramPos++
+			}
+		} else {
+			// Procedimiento normal (no función)
+			for i, p := range req.Params {
+				placeholders = append(placeholders, fmt.Sprintf(":%d", i+1))
+
+				if strings.ToUpper(p.Direction) == "OUT" {
+					outIdx := len(outIndexes)
+					lowerName := strings.ToLower(p.Name)
+					isDate := strings.ToLower(p.Type) == "date"
+					isNum := strings.ToLower(p.Type) == "number" ||
+						strings.Contains(lowerName, "resultado") || strings.Contains(lowerName, "result") ||
+						strings.Contains(lowerName, "total") || strings.Contains(lowerName, "count") ||
+						strings.Contains(lowerName, "suma") || strings.Contains(lowerName, "num") ||
+						strings.Contains(lowerName, "int") || strings.Contains(lowerName, "id")
+
+					outIndexes = append(outIndexes, p.Name)
+
+					if isDate {
+						datePtr := new(sql.NullTime)
+						outDateMap[outIdx] = datePtr
+						args = append(args, sql.Out{Dest: datePtr, In: false})
+					} else if isNum {
+						numPtr := new(sql.NullFloat64)
+						outNumMap[outIdx] = numPtr
+						args = append(args, sql.Out{Dest: numPtr, In: false})
+					} else {
+						ptr := new(string)
+						*ptr = strings.Repeat(" ", 4000)
+						outBuffers[outIdx] = ptr
+						args = append(args, sql.Out{Dest: ptr, In: false})
+					}
 				} else {
-					args = append(args, p.Value)
+					// Parámetro IN
+					pTypeLower := strings.ToLower(p.Type)
+					pNameLower := strings.ToLower(p.Name)
+					isDateType := pTypeLower == "date"
+					isDateName := strings.Contains(pNameLower, "fecha") || strings.Contains(pNameLower, "periodo")
+
+					if isDateType || isDateName {
+						if parsedTime, err := parseDateParam(p.Value); err == nil {
+							args = append(args, parsedTime)
+						} else {
+							log.Printf("[ASYNC_PROCEDURE] Advertencia al parsear fecha en parámetro '%s': %v", p.Name, err)
+							args = append(args, p.Value)
+						}
+					} else {
+						args = append(args, p.Value)
+					}
 				}
 			}
 		}
 
-		jobManager.UpdateJob(job.ID, func(j *AsyncJob) {
-			j.Progress = 30
-		})
-
 		// Formatear el nombre para manejar esquema.procedimiento correctamente
 		procedureName := formatObjectName(req.Schema, req.Name)
 
-		call := fmt.Sprintf("BEGIN %s(%s); END;", procedureName, strings.Join(placeholders, ", "))
+		// Construir la llamada diferenciando entre función y procedimiento
+		var call string
+		if req.IsFunction {
+			// Para funciones: BEGIN :1 := function_name(params); END;
+			call = fmt.Sprintf("BEGIN :1 := %s(%s); END;", procedureName, strings.Join(placeholders[1:], ", "))
+		} else {
+			// Para procedimientos: BEGIN procedure_name(params); END;
+			call = fmt.Sprintf("BEGIN %s(%s); END;", procedureName, strings.Join(placeholders, ", "))
+		}
 
 		stmt, err := db.Prepare(call)
 		if err != nil {
