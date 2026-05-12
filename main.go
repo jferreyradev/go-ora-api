@@ -1164,6 +1164,24 @@ func procedureHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validar que parámetros IN tengan valores
+	var missingParams []string
+	for _, p := range req.Params {
+		if strings.ToUpper(p.Direction) != "OUT" {
+			if p.Value == nil {
+				missingParams = append(missingParams, p.Name)
+			}
+		}
+	}
+	if len(missingParams) > 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"error":          "Parámetros requeridos sin valor",
+			"missing_params": missingParams,
+		})
+		return
+	}
+
 	if req.Schema != "" {
 		log.Printf("[PROCEDURE] Ejecutando: %s.%s con %d par├ímetros", req.Schema, req.Name, len(req.Params))
 	} else {
@@ -1179,20 +1197,6 @@ func procedureHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Si es función, el primer OUT es el valor de retorno
 	if req.IsFunction {
-		// Buscar el primer parámetro OUT (valor de retorno)
-		retIndex := -1
-		for i, p := range req.Params {
-			if strings.ToUpper(p.Direction) == "OUT" {
-				retIndex = i
-				break
-			}
-		}
-		if retIndex == -1 {
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]string{"error": "Debe incluir un parámetro OUT para el valor de retorno"})
-			return
-		}
-
 		// Contar parámetros OUT para funciones
 		outParamCount := 0
 		for _, p := range req.Params {
@@ -1201,48 +1205,27 @@ func procedureHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		// Preasignar buffers para TODOS los OUT params (incluyendo el retorno)
-		preallocDates := make([]sql.NullTime, outParamCount)
-		preallocNums := make([]sql.NullFloat64, outParamCount)
-		preallocStrs := make([]string, outParamCount)
-		for j := 0; j < outParamCount; j++ {
+		// Preasignar buffers para el RETURN value + todos los OUT params
+		preallocDates := make([]sql.NullTime, outParamCount+1)
+		preallocNums := make([]sql.NullFloat64, outParamCount+1)
+		preallocStrs := make([]string, outParamCount+1)
+		for j := 0; j < outParamCount+1; j++ {
 			preallocStrs[j] = strings.Repeat(" ", 4000)
 		}
 
-		// Construir placeholders y argumentos para funciones
-		// El retorno de la función siempre va en :1
+		// :1 es siempre el RETURN value de la función
 		placeholders = append(placeholders, ":1")
 
-		// Procesar el valor de retorno
-		p := req.Params[retIndex]
-		lowerName := strings.ToLower(p.Name)
-		isDate := strings.ToLower(p.Type) == "date"
-		isNum := strings.ToLower(p.Type) == "number" ||
-			strings.Contains(lowerName, "resultado") || strings.Contains(lowerName, "result") ||
-			strings.Contains(lowerName, "total") || strings.Contains(lowerName, "count") ||
-			strings.Contains(lowerName, "suma") || strings.Contains(lowerName, "num") ||
-			strings.Contains(lowerName, "int") || strings.Contains(lowerName, "id")
+		// El retorno de la función va en índice 0
+		// Asumir que es NUMBER a menos que se especifique otro tipo
+		args = append(args, sql.Out{Dest: &preallocNums[0], In: false})
+		outNumMap[0] = &preallocNums[0]
+		outIndexes[0] = "return_value"
 
-		outIndexes[0] = p.Name
-
-		if isDate {
-			args = append(args, sql.Out{Dest: &preallocDates[0], In: false})
-			outDateMap[0] = &preallocDates[0]
-		} else if isNum {
-			args = append(args, sql.Out{Dest: &preallocNums[0], In: false})
-			outNumMap[0] = &preallocNums[0]
-		} else {
-			args = append(args, sql.Out{Dest: &preallocStrs[0], In: false})
-			outBuffers[0] = &preallocStrs[0]
-		}
-
-		// Resto de parámetros
+		// Procesar parámetros en orden (IN y OUT)
 		paramPos := 2
-		outIdx := 1 // Índice en los slices preallocados (después del retorno)
-		for i, p := range req.Params {
-			if i == retIndex {
-				continue
-			}
+		outIdx := 1 // Índice para OUT params (después del RETURN)
+		for _, p := range req.Params {
 			placeholders = append(placeholders, fmt.Sprintf(":%d", paramPos))
 
 			if strings.ToUpper(p.Direction) == "OUT" {
@@ -1289,7 +1272,7 @@ func procedureHandler(w http.ResponseWriter, r *http.Request) {
 			paramPos++
 		}
 
-		// Formatear el nombre para manejar esquema.funci├│n correctamente
+		// Formatear el nombre para manejar esquema.función correctamente
 		functionName := formatObjectName(req.Schema, req.Name)
 
 		call := fmt.Sprintf("BEGIN :1 := %s(%s); END;", functionName, strings.Join(placeholders[1:], ", "))
@@ -1540,6 +1523,30 @@ func asyncProcedureHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validar parámetros requeridos antes de crear el job
+	if req.Name == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Falta el campo 'name'"})
+		return
+	}
+
+	var missingParams []string
+	for _, p := range req.Params {
+		if strings.ToUpper(p.Direction) != "OUT" {
+			if p.Value == nil {
+				missingParams = append(missingParams, p.Name)
+			}
+		}
+	}
+	if len(missingParams) > 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"error":          "Parámetros requeridos sin valor",
+			"missing_params": missingParams,
+		})
+		return
+	}
+
 	// Preparar par├ímetros para guardar en el job
 	paramsMap := make(map[string]interface{})
 	paramsMap["name"] = req.Name
@@ -1604,87 +1611,143 @@ func asyncProcedureHandler(w http.ResponseWriter, r *http.Request) {
 		outDateMap := make(map[int]*sql.NullTime)
 
 		if req.IsFunction {
-			outIdx := 0
+			// Contar parámetros OUT para funciones
+			outParamCount := 0
+			for _, p := range req.Params {
+				if strings.ToUpper(p.Direction) == "OUT" {
+					outParamCount++
+				}
+			}
+
+			// Preasignar buffers para el RETURN value + todos los OUT params
+			preallocDates := make([]sql.NullTime, outParamCount+1)
+			preallocNums := make([]sql.NullFloat64, outParamCount+1)
+			preallocStrs := make([]string, outParamCount+1)
+			for j := 0; j < outParamCount+1; j++ {
+				preallocStrs[j] = strings.Repeat(" ", 4000)
+			}
+
+			// :1 es siempre el RETURN value de la función
 			placeholders = append(placeholders, ":1")
-			ptr := new(string)
-			*ptr = ""
-			outBuffers[outIdx] = ptr
-			args = append(args, sql.Out{Dest: ptr})
+
+			// El retorno de la función va en índice 0
+			// Asumir que es NUMBER a menos que se especifique otro tipo
+			args = append(args, sql.Out{Dest: &preallocNums[0], In: false})
+			outNumMap[0] = &preallocNums[0]
 			outIndexes = append(outIndexes, "return_value")
-		}
 
-		for _, p := range req.Params {
-			if p.Direction == "OUT" {
-				outIdx := len(outIndexes)
-				placeholders = append(placeholders, fmt.Sprintf(":%d", len(placeholders)+1))
+			// Procesar parámetros en orden (IN y OUT)
+			paramPos := 2
+			outIdx := 1 // Índice para OUT params (después del RETURN)
+			for _, p := range req.Params {
+				placeholders = append(placeholders, fmt.Sprintf(":%d", paramPos))
 
-				// Verificar tipo expl├¡cito o inferir por nombre
-				pType := strings.ToLower(p.Type)
-				pNameLower := strings.ToLower(p.Name)
-				isDate := pType == "date"
-				isNumber := false
+				if strings.ToUpper(p.Direction) == "OUT" {
+					lowerName := strings.ToLower(p.Name)
+					isDate := strings.ToLower(p.Type) == "date"
+					isNum := strings.ToLower(p.Type) == "number" ||
+						strings.Contains(lowerName, "resultado") || strings.Contains(lowerName, "result") ||
+						strings.Contains(lowerName, "total") || strings.Contains(lowerName, "count") ||
+						strings.Contains(lowerName, "suma") || strings.Contains(lowerName, "num") ||
+						strings.Contains(lowerName, "int") || strings.Contains(lowerName, "id")
 
-				if !isDate {
-					if pType == "number" || pType == "integer" || pType == "float" {
-						isNumber = true
-					} else if pType == "" {
-						numberKeywords := []string{"resultado", "result", "total", "count", "suma", "num", "int", "id"}
-						for _, kw := range numberKeywords {
-							if strings.Contains(pNameLower, kw) {
-								isNumber = true
-								break
-							}
-						}
-					}
-				}
+					outIndexes = append(outIndexes, p.Name)
 
-				if isDate {
-					datePtr := new(sql.NullTime)
-					outDateMap[outIdx] = datePtr
-					args = append(args, sql.Out{Dest: datePtr})
-				} else if isNumber {
-					numPtr := new(sql.NullFloat64)
-					outNumMap[outIdx] = numPtr
-					args = append(args, sql.Out{Dest: numPtr})
-				} else {
-					ptr := new(string)
-					*ptr = strings.Repeat(" ", 4000)
-					outBuffers[outIdx] = ptr
-					args = append(args, sql.Out{Dest: ptr})
-				}
-				outIndexes = append(outIndexes, p.Name)
-			} else {
-				placeholders = append(placeholders, fmt.Sprintf(":%d", len(placeholders)+1))
-
-				// Verificar si es fecha por tipo explícito o por nombre
-				pTypeLower := strings.ToLower(p.Type)
-				pNameLower := strings.ToLower(p.Name)
-				isDateType := pTypeLower == "date"
-				isDateName := strings.Contains(pNameLower, "fecha") || strings.Contains(pNameLower, "periodo")
-
-				if isDateType || isDateName {
-					// Intentar parsear como fecha usando parseDateParam
-					if parsedTime, err := parseDateParam(p.Value); err == nil {
-						args = append(args, parsedTime)
+					if isDate {
+						args = append(args, sql.Out{Dest: &preallocDates[outIdx], In: false})
+						outDateMap[outIdx] = &preallocDates[outIdx]
+					} else if isNum {
+						args = append(args, sql.Out{Dest: &preallocNums[outIdx], In: false})
+						outNumMap[outIdx] = &preallocNums[outIdx]
 					} else {
-						// Si falla, loguear y usar valor original
-						log.Printf("[ASYNC_PROCEDURE] Advertencia al parsear fecha en parámetro '%s': %v", p.Name, err)
+						args = append(args, sql.Out{Dest: &preallocStrs[outIdx], In: false})
+						outBuffers[outIdx] = &preallocStrs[outIdx]
+					}
+					outIdx++
+				} else {
+					// Parámetro IN
+					pTypeLower := strings.ToLower(p.Type)
+					pNameLower := strings.ToLower(p.Name)
+					isDateType := pTypeLower == "date"
+					isDateName := strings.Contains(pNameLower, "fecha") || strings.Contains(pNameLower, "periodo")
+
+					if isDateType || isDateName {
+						if parsedTime, err := parseDateParam(p.Value); err == nil {
+							args = append(args, parsedTime)
+						} else {
+							log.Printf("[ASYNC_PROCEDURE] Advertencia al parsear fecha en parámetro '%s': %v", p.Name, err)
+							args = append(args, p.Value)
+						}
+					} else {
 						args = append(args, p.Value)
 					}
+				}
+				paramPos++
+			}
+		} else {
+			// Procedimiento normal (no función)
+			for i, p := range req.Params {
+				placeholders = append(placeholders, fmt.Sprintf(":%d", i+1))
+
+				if strings.ToUpper(p.Direction) == "OUT" {
+					outIdx := len(outIndexes)
+					lowerName := strings.ToLower(p.Name)
+					isDate := strings.ToLower(p.Type) == "date"
+					isNum := strings.ToLower(p.Type) == "number" ||
+						strings.Contains(lowerName, "resultado") || strings.Contains(lowerName, "result") ||
+						strings.Contains(lowerName, "total") || strings.Contains(lowerName, "count") ||
+						strings.Contains(lowerName, "suma") || strings.Contains(lowerName, "num") ||
+						strings.Contains(lowerName, "int") || strings.Contains(lowerName, "id")
+
+					outIndexes = append(outIndexes, p.Name)
+
+					if isDate {
+						datePtr := new(sql.NullTime)
+						outDateMap[outIdx] = datePtr
+						args = append(args, sql.Out{Dest: datePtr, In: false})
+					} else if isNum {
+						numPtr := new(sql.NullFloat64)
+						outNumMap[outIdx] = numPtr
+						args = append(args, sql.Out{Dest: numPtr, In: false})
+					} else {
+						ptr := new(string)
+						*ptr = strings.Repeat(" ", 4000)
+						outBuffers[outIdx] = ptr
+						args = append(args, sql.Out{Dest: ptr, In: false})
+					}
 				} else {
-					args = append(args, p.Value)
+					// Parámetro IN
+					pTypeLower := strings.ToLower(p.Type)
+					pNameLower := strings.ToLower(p.Name)
+					isDateType := pTypeLower == "date"
+					isDateName := strings.Contains(pNameLower, "fecha") || strings.Contains(pNameLower, "periodo")
+
+					if isDateType || isDateName {
+						if parsedTime, err := parseDateParam(p.Value); err == nil {
+							args = append(args, parsedTime)
+						} else {
+							log.Printf("[ASYNC_PROCEDURE] Advertencia al parsear fecha en parámetro '%s': %v", p.Name, err)
+							args = append(args, p.Value)
+						}
+					} else {
+						args = append(args, p.Value)
+					}
 				}
 			}
 		}
 
-		jobManager.UpdateJob(job.ID, func(j *AsyncJob) {
-			j.Progress = 30
-		})
-
 		// Formatear el nombre para manejar esquema.procedimiento correctamente
 		procedureName := formatObjectName(req.Schema, req.Name)
 
-		call := fmt.Sprintf("BEGIN %s(%s); END;", procedureName, strings.Join(placeholders, ", "))
+		// Construir la llamada diferenciando entre función y procedimiento
+		var call string
+		if req.IsFunction {
+			// Para funciones: BEGIN :1 := function_name(params); END;
+			call = fmt.Sprintf("BEGIN :1 := %s(%s); END;", procedureName, strings.Join(placeholders[1:], ", "))
+		} else {
+			// Para procedimientos: BEGIN procedure_name(params); END;
+			call = fmt.Sprintf("BEGIN %s(%s); END;", procedureName, strings.Join(placeholders, ", "))
+		}
 
 		stmt, err := db.Prepare(call)
 		if err != nil {
