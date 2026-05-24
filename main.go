@@ -10,6 +10,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -692,7 +693,15 @@ func loadConfig() AppConfig {
 
 // Abre la conexi├│n a Oracle y la retorna
 func openOracleConnection(cfg AppConfig) (*sql.DB, error) {
-	dsn := fmt.Sprintf("oracle://%s:%s@%s:%s/%s", cfg.OracleUser, cfg.OraclePassword, cfg.OracleHost, cfg.OraclePort, cfg.OracleService)
+	dsn := fmt.Sprintf(
+		"oracle://%s:%s@%s:%s/%s",
+		url.QueryEscape(cfg.OracleUser),
+		url.QueryEscape(cfg.OraclePassword),
+		cfg.OracleHost,
+		cfg.OraclePort,
+		cfg.OracleService,
+	)
+
 	database, err := sql.Open("oracle", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("error al abrir driver Oracle: %w", err)
