@@ -24,12 +24,12 @@
 ### 🚀 Despliegue en Producción
 - [🌐 Deployment](deployment/DEPLOYMENT.md) - Guía de despliegue
 - [🔒 Firewall Windows](deployment/FIREWALL_WINDOWS.md) - Configurar firewall
-- [⚡ Trabajos Asíncronos](api-reference/ASYNC_JOBS.md) - Jobs en background
+- [⚡ Trabajos Asíncronos](api-reference/ASYNC_JOBS.md) - Jobs en background, cola secuencial y ejecución exclusiva
 
 ### 📡 Referencia de API
 - [🔗 Endpoints Disponibles](api-reference/ENDPOINTS.md) - Listado completo de operaciones
 - [📋 Schema y Campos](api-reference/SCHEMA_FIELD.md) - Tipos de datos soportados
-- [⏱️ Jobs Asíncronos](api-reference/ASYNC_JOBS.md) - Procesos en background
+- [⏱️ Jobs Asíncronos](api-reference/ASYNC_JOBS.md) - Procesos en background, políticas `parallel`, `sequential` y `exclusive`
 
 ---
 
@@ -66,7 +66,7 @@
 |---------|------------|
 | [ENDPOINTS.md](api-reference/ENDPOINTS.md) | Todos los endpoints disponibles |
 | [SCHEMA_FIELD.md](api-reference/SCHEMA_FIELD.md) | Tipos de datos y parámetros |
-| [ASYNC_JOBS.md](api-reference/ASYNC_JOBS.md) | Jobs en background y estado |
+| [ASYNC_JOBS.md](api-reference/ASYNC_JOBS.md) | Jobs en background, estado y control de concurrencia |
 
 ### Operations (🚀)
 | Archivo | Descripción |
@@ -96,6 +96,7 @@
 | Llamar un endpoint | [Endpoints](api-reference/ENDPOINTS.md) |
 | Trabajar con parámetros OUT | [Schema & Fields](api-reference/SCHEMA_FIELD.md) |
 | Usar jobs asíncronos | [Async Jobs](api-reference/ASYNC_JOBS.md) |
+| Configurar ejecución secuencial o exclusiva | [Async Jobs](api-reference/ASYNC_JOBS.md) |
 | Desplegar en producción | [Deployment](deployment/DEPLOYMENT.md) |
 | Abrir puerto en Windows | [Firewall Windows](deployment/FIREWALL_WINDOWS.md) |
 | Ver qué cambió | [Changelog](release/CHANGELOG.md) |
@@ -118,7 +119,7 @@ docs/
 ├── api-reference/                    # Referencia técnica
 │   ├── ENDPOINTS.md
 │   ├── SCHEMA_FIELD.md
-│   └── ASYNC_JOBS.md
+│   └── ASYNC_JOBS.md                 # Incluye control de concurrencia
 │
 ├── deployment/                       # Producción
 │   ├── DEPLOYMENT.md
@@ -151,11 +152,12 @@ docs/
 - **Primero**: Lee [README.md](../README.md) para contexto general
 - **Luego**: Sigue [Inicio Rápido](getting-started/QUICKSTART.md)
 - **Desarrollo**: Consulta [API Reference](api-reference/)
+- **Jobs y concurrencia**: Revisa [Async Jobs](api-reference/ASYNC_JOBS.md)
 - **Producción**: Lee [Deployment](deployment/)
 - **Versiones**: Mira [Release](release/)
 
 ---
 
-**Última actualización:** 24/04/2026  
+**Última actualización:** 29/05/2026  
 **Versión Actual:** 1.0.0  
 **Licencia:** MIT
