@@ -40,18 +40,28 @@ const (
 	JobStatusFailed    JobStatus = "failed"
 )
 
+type ExecutionMode string
+
+const (
+	ExecutionModeParallel   ExecutionMode = "parallel"
+	ExecutionModeSequential ExecutionMode = "sequential"
+	ExecutionModeExclusive  ExecutionMode = "exclusive"
+)
+
 // AsyncJob representa un job de procedimiento en ejecuci├│n
 type AsyncJob struct {
-	ID        string                 `json:"id"`
-	Status    JobStatus              `json:"status"`
-	ProcName  string                 `json:"procedure_name"`
-	Params    map[string]interface{} `json:"params,omitempty"`
-	StartTime time.Time              `json:"start_time"`
-	EndTime   *time.Time             `json:"end_time,omitempty"`
-	Duration  string                 `json:"duration,omitempty"`
-	Result    map[string]interface{} `json:"result,omitempty"`
-	Error     string                 `json:"error,omitempty"`
-	Progress  int                    `json:"progress"` // 0-100
+	ID            string                 `json:"id"`
+	Status        JobStatus              `json:"status"`
+	ProcName      string                 `json:"procedure_name"`
+	ExecutionMode ExecutionMode          `json:"execution_mode,omitempty"`
+	LockKey       string                 `json:"lock_key,omitempty"`
+	Params        map[string]interface{} `json:"params,omitempty"`
+	StartTime     time.Time              `json:"start_time"`
+	EndTime       *time.Time             `json:"end_time,omitempty"`
+	Duration      string                 `json:"duration,omitempty"`
+	Result        map[string]interface{} `json:"result,omitempty"`
+	Error         string                 `json:"error,omitempty"`
+	Progress      int                    `json:"progress"` // 0-100
 }
 
 // QueryLog representa un registro de consulta ejecutada
@@ -78,6 +88,8 @@ var jobManager = &JobManager{
 	jobs: make(map[string]*AsyncJob),
 }
 
+var errExclusiveJobConflict = fmt.Errorf("ya existe un job activo para esta lock_key")
+
 // generateJobID genera un ID ├║nico para el job
 func generateJobID() string {
 	b := make([]byte, 16)
@@ -89,25 +101,53 @@ func generateJobID() string {
 	return hex.EncodeToString(b)
 }
 
+func normalizeExecutionMode(mode string) (ExecutionMode, error) {
+	normalized := strings.ToLower(strings.TrimSpace(mode))
+	if normalized == "" {
+		return ExecutionModeParallel, nil
+	}
+	switch ExecutionMode(normalized) {
+	case ExecutionModeParallel, ExecutionModeSequential, ExecutionModeExclusive:
+		return ExecutionMode(normalized), nil
+	default:
+		return "", fmt.Errorf("execution_mode inválido: %s", mode)
+	}
+}
+
+func normalizeLockKey(lockKey, procName string) string {
+	normalized := strings.TrimSpace(lockKey)
+	if normalized == "" {
+		return procName
+	}
+	return normalized
+}
+
 // CreateJob crea un nuevo job y lo registra (en memoria y BD)
-func (jm *JobManager) CreateJob(procName string, params map[string]interface{}) *AsyncJob {
+func (jm *JobManager) CreateJob(procName string, params map[string]interface{}, executionMode ExecutionMode, lockKey string) (*AsyncJob, error) {
 	jm.mu.Lock()
-	defer jm.mu.Unlock()
 
 	job := &AsyncJob{
-		ID:        generateJobID(),
-		Status:    JobStatusPending,
-		ProcName:  procName,
-		Params:    params,
-		StartTime: time.Now(),
-		Progress:  0,
+		ID:            generateJobID(),
+		Status:        JobStatusPending,
+		ProcName:      procName,
+		ExecutionMode: executionMode,
+		LockKey:       lockKey,
+		Params:        params,
+		StartTime:     time.Now(),
+		Progress:      0,
 	}
 	jm.jobs[job.ID] = job
+	jm.mu.Unlock()
 
 	// Guardar en base de datos
-	go jm.saveJobToDB(job)
+	if err := jm.saveJobToDB(job); err != nil {
+		jm.mu.Lock()
+		delete(jm.jobs, job.ID)
+		jm.mu.Unlock()
+		return nil, err
+	}
 
-	return job
+	return job, nil
 }
 
 // GetJob obtiene un job por su ID
@@ -140,6 +180,79 @@ func (jm *JobManager) UpdateJob(id string, updateFn func(*AsyncJob)) {
 		// Actualizar en base de datos
 		go jm.updateJobInDB(job)
 	}
+}
+
+func (jm *JobManager) markJobRunningInMemory(id string) {
+	jm.mu.Lock()
+	defer jm.mu.Unlock()
+	if job, exists := jm.jobs[id]; exists {
+		job.Status = JobStatusRunning
+		job.Progress = 10
+	}
+}
+
+func (jm *JobManager) TryStartJob(id string, executionMode ExecutionMode, lockKey string) (bool, error) {
+	if db == nil {
+		jm.markJobRunningInMemory(id)
+		return true, nil
+	}
+
+	if executionMode == ExecutionModeParallel {
+		result, err := db.Exec(`
+			UPDATE ASYNC_JOBS
+			SET STATUS = :1, PROGRESS = :2
+			WHERE JOB_ID = :3
+			  AND STATUS = :4`,
+			string(JobStatusRunning), 10, id, string(JobStatusPending),
+		)
+		if err != nil {
+			return false, err
+		}
+		rowsAffected, err := result.RowsAffected()
+		if err != nil {
+			return false, err
+		}
+		if rowsAffected == 0 {
+			return false, nil
+		}
+		jm.markJobRunningInMemory(id)
+		return true, nil
+	}
+
+	result, err := db.Exec(`
+		UPDATE ASYNC_JOBS j
+		SET j.STATUS = :1,
+		    j.PROGRESS = :2
+		WHERE j.JOB_ID = :3
+		  AND j.STATUS = :4
+		  AND NOT EXISTS (
+		    SELECT 1
+		    FROM ASYNC_JOBS r
+		    WHERE r.LOCK_KEY = :5
+		      AND r.STATUS = :6
+		      AND r.JOB_ID <> j.JOB_ID
+		  )
+		  AND NOT EXISTS (
+		    SELECT 1
+		    FROM ASYNC_JOBS p
+		    WHERE p.LOCK_KEY = :5
+		      AND p.STATUS = :4
+		      AND (p.CREATED_AT < j.CREATED_AT OR (p.CREATED_AT = j.CREATED_AT AND p.JOB_ID < j.JOB_ID))
+		  )`,
+		string(JobStatusRunning), 10, id, string(JobStatusPending), lockKey, string(JobStatusRunning),
+	)
+	if err != nil {
+		return false, err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+	if rowsAffected == 0 {
+		return false, nil
+	}
+	jm.markJobRunningInMemory(id)
+	return true, nil
 }
 
 // CleanupOldJobs elimina jobs completados hace m├ís de 24 horas
@@ -308,9 +421,9 @@ func (jm *JobManager) DeleteJobs(status []string, olderThanDays int) (int, error
 }
 
 // saveJobToDB guarda un job en la base de datos
-func (jm *JobManager) saveJobToDB(job *AsyncJob) {
+func (jm *JobManager) saveJobToDB(job *AsyncJob) error {
 	if db == nil {
-		return
+		return nil
 	}
 
 	// Convertir par├ímetros a JSON
@@ -321,16 +434,20 @@ func (jm *JobManager) saveJobToDB(job *AsyncJob) {
 		}
 	}
 
-	_, err := db.Exec(`
+	insertSQL := `
 		INSERT INTO ASYNC_JOBS (
-			JOB_ID, STATUS, PROCEDURE_NAME, PARAMS, START_TIME, 
+			JOB_ID, STATUS, PROCEDURE_NAME, EXECUTION_MODE, LOCK_KEY, PARAMS, START_TIME, 
 			END_TIME, DURATION, RESULT, ERROR_MSG, PROGRESS
 		) VALUES (
-			:1, :2, :3, :4, :5, :6, :7, :8, :9, :10
-		)`,
+			:1, :2, :3, :4, :5, :6, :7, :8, :9, :10, :11, :12
+		)`
+
+	args := []interface{}{
 		job.ID,
 		string(job.Status),
 		job.ProcName,
+		string(job.ExecutionMode),
+		job.LockKey,
 		paramsJSON,
 		job.StartTime,
 		job.EndTime,
@@ -338,11 +455,43 @@ func (jm *JobManager) saveJobToDB(job *AsyncJob) {
 		nil, // RESULT ser├í actualizado despu├®s
 		job.Error,
 		job.Progress,
-	)
-
-	if err != nil {
-		log.Printf("Error guardando job %s en BD: %v", job.ID, err)
 	}
+
+	if job.ExecutionMode == ExecutionModeExclusive {
+		result, err := db.Exec(`
+			INSERT INTO ASYNC_JOBS (
+				JOB_ID, STATUS, PROCEDURE_NAME, EXECUTION_MODE, LOCK_KEY, PARAMS, START_TIME, 
+				END_TIME, DURATION, RESULT, ERROR_MSG, PROGRESS
+			)
+			SELECT :1, :2, :3, :4, :5, :6, :7, :8, :9, :10, :11, :12
+			FROM DUAL
+			WHERE NOT EXISTS (
+				SELECT 1
+				FROM ASYNC_JOBS
+				WHERE LOCK_KEY = :13
+				  AND STATUS IN ('pending', 'running')
+			)`,
+			args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8], args[9], args[10], args[11], job.LockKey,
+		)
+		if err != nil {
+			log.Printf("Error guardando job %s en BD: %v", job.ID, err)
+			return err
+		}
+		rowsAffected, err := result.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if rowsAffected == 0 {
+			return errExclusiveJobConflict
+		}
+		return nil
+	}
+
+	if _, err := db.Exec(insertSQL, args...); err != nil {
+		log.Printf("Error guardando job %s en BD: %v", job.ID, err)
+		return err
+	}
+	return nil
 }
 
 // updateJobInDB actualiza un job en la base de datos
@@ -389,7 +538,7 @@ func (jm *JobManager) LoadJobsFromDB() {
 	}
 
 	rows, err := db.Query(`
-		SELECT JOB_ID, STATUS, PROCEDURE_NAME, PARAMS, START_TIME,
+		SELECT JOB_ID, STATUS, PROCEDURE_NAME, EXECUTION_MODE, LOCK_KEY, PARAMS, START_TIME,
 		       END_TIME, DURATION, RESULT, ERROR_MSG, PROGRESS
 		FROM ASYNC_JOBS
 		WHERE START_TIME >= SYSDATE - 1
@@ -411,12 +560,23 @@ func (jm *JobManager) LoadJobsFromDB() {
 	for rows.Next() {
 		var job AsyncJob
 		var endTime sql.NullTime
-		var duration, paramsJSON, resultJSON, errorMsg sql.NullString
+		var duration, paramsJSON, resultJSON, errorMsg, executionMode, lockKey sql.NullString
 
-		err := rows.Scan(&job.ID, &job.Status, &job.ProcName, &paramsJSON, &job.StartTime,
+		err := rows.Scan(&job.ID, &job.Status, &job.ProcName, &executionMode, &lockKey, &paramsJSON, &job.StartTime,
 			&endTime, &duration, &resultJSON, &errorMsg, &job.Progress)
 
 		if err == nil {
+			if executionMode.Valid {
+				job.ExecutionMode = ExecutionMode(strings.ToLower(executionMode.String))
+			} else {
+				job.ExecutionMode = ExecutionModeParallel
+			}
+			if lockKey.Valid {
+				job.LockKey = lockKey.String
+			}
+			if job.LockKey == "" {
+				job.LockKey = job.ProcName
+			}
 			if endTime.Valid {
 				job.EndTime = &endTime.Time
 			}
@@ -472,6 +632,8 @@ func createTableIfNotExists() error {
 			JOB_ID VARCHAR2(32) PRIMARY KEY,
 			STATUS VARCHAR2(20) NOT NULL,
 			PROCEDURE_NAME VARCHAR2(200) NOT NULL,
+			EXECUTION_MODE VARCHAR2(20) DEFAULT 'parallel' NOT NULL CHECK (EXECUTION_MODE IN ('parallel', 'sequential', 'exclusive')),
+			LOCK_KEY VARCHAR2(200) NOT NULL,
 			PARAMS CLOB,
 			START_TIME TIMESTAMP NOT NULL,
 			END_TIME TIMESTAMP,
@@ -490,6 +652,12 @@ func createTableIfNotExists() error {
 	// Crear ├¡ndices
 	if _, err := db.Exec("CREATE INDEX IDX_ASYNC_JOBS_STATUS ON ASYNC_JOBS(STATUS)"); err != nil {
 		log.Printf("ÔÜá´©Å  Error creando ├¡ndice IDX_ASYNC_JOBS_STATUS: %v", err)
+	}
+	if _, err := db.Exec("CREATE INDEX IDX_ASYNC_JOBS_STATUS_NAME ON ASYNC_JOBS(STATUS, PROCEDURE_NAME)"); err != nil {
+		log.Printf("ÔÜá´©Å  Error creando ├¡ndice IDX_ASYNC_JOBS_STATUS_NAME: %v", err)
+	}
+	if _, err := db.Exec("CREATE INDEX IDX_ASYNC_JOBS_LOCK_KEY_STATUS ON ASYNC_JOBS(LOCK_KEY, STATUS, CREATED_AT)"); err != nil {
+		log.Printf("ÔÜá´©Å  Error creando ├¡ndice IDX_ASYNC_JOBS_LOCK_KEY_STATUS: %v", err)
 	}
 	if _, err := db.Exec("CREATE INDEX IDX_ASYNC_JOBS_START_TIME ON ASYNC_JOBS(START_TIME)"); err != nil {
 		log.Printf("ÔÜá´©Å  Error creando ├¡ndice IDX_ASYNC_JOBS_START_TIME: %v", err)
@@ -1515,10 +1683,12 @@ func asyncProcedureHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		Name       string `json:"name"`
-		Schema     string `json:"schema,omitempty"` // Esquema del procedimiento/funci├│n
-		IsFunction bool   `json:"isFunction"`
-		Params     []struct {
+		Name          string `json:"name"`
+		Schema        string `json:"schema,omitempty"` // Esquema del procedimiento/funci├│n
+		IsFunction    bool   `json:"isFunction"`
+		ExecutionMode string `json:"execution_mode,omitempty"`
+		LockKey       string `json:"lock_key,omitempty"`
+		Params        []struct {
 			Name      string      `json:"name"`
 			Value     interface{} `json:"value,omitempty"`
 			Direction string      `json:"direction"`
@@ -1538,6 +1708,13 @@ func asyncProcedureHandler(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]string{"error": "Falta el campo 'name'"})
 		return
 	}
+	executionMode, err := normalizeExecutionMode(req.ExecutionMode)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "execution_mode debe ser: parallel, sequential o exclusive"})
+		return
+	}
+	lockKey := normalizeLockKey(req.LockKey, req.Name)
 
 	var missingParams []string
 	for _, p := range req.Params {
@@ -1560,6 +1737,8 @@ func asyncProcedureHandler(w http.ResponseWriter, r *http.Request) {
 	paramsMap := make(map[string]interface{})
 	paramsMap["name"] = req.Name
 	paramsMap["isFunction"] = req.IsFunction
+	paramsMap["execution_mode"] = executionMode
+	paramsMap["lock_key"] = lockKey
 	paramsArray := []map[string]interface{}{}
 	for _, p := range req.Params {
 		paramObj := map[string]interface{}{
@@ -1577,13 +1756,29 @@ func asyncProcedureHandler(w http.ResponseWriter, r *http.Request) {
 	paramsMap["params"] = paramsArray
 
 	// Crear el job con los par├ímetros
-	job := jobManager.CreateJob(req.Name, paramsMap)
+	job, err := jobManager.CreateJob(req.Name, paramsMap, executionMode, lockKey)
+	if err != nil {
+		if err == errExclusiveJobConflict {
+			w.WriteHeader(http.StatusConflict)
+			json.NewEncoder(w).Encode(map[string]string{
+				"error":   fmt.Sprintf("Ya existe un job activo para lock_key '%s'", lockKey),
+				"code":    "JOB_ALREADY_RUNNING",
+				"job_key": lockKey,
+			})
+			return
+		}
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "No se pudo crear el job asíncrono"})
+		return
+	}
 
 	// Responder inmediatamente con el ID del job
 	w.WriteHeader(http.StatusAccepted)
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"status":           "accepted",
 		"job_id":           job.ID,
+		"execution_mode":   job.ExecutionMode,
+		"lock_key":         job.LockKey,
 		"message":          "Procedimiento ejecut├índose en segundo plano",
 		"check_status_url": fmt.Sprintf("/jobs/%s", job.ID),
 	})
@@ -1605,11 +1800,24 @@ func asyncProcedureHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}()
 
-		// Actualizar estado a running
-		jobManager.UpdateJob(job.ID, func(j *AsyncJob) {
-			j.Status = JobStatusRunning
-			j.Progress = 10
-		})
+		for {
+			started, err := jobManager.TryStartJob(job.ID, executionMode, lockKey)
+			if err != nil {
+				endTime := time.Now()
+				jobManager.UpdateJob(job.ID, func(j *AsyncJob) {
+					j.Status = JobStatusFailed
+					j.Error = fmt.Sprintf("No se pudo iniciar el job: %v", err)
+					j.EndTime = &endTime
+					j.Duration = endTime.Sub(j.StartTime).String()
+					j.Progress = 100
+				})
+				return
+			}
+			if started {
+				break
+			}
+			time.Sleep(250 * time.Millisecond)
+		}
 
 		// Preparar par├ímetros igual que en procedureHandler
 		placeholders := []string{}

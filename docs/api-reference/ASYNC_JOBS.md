@@ -108,19 +108,16 @@ sqlplus usuario/password@db @sql/create_async_jobs_table.sql
 
 ### 2. Extender tabla para control de concurrencia
 
-Si vas a usar ejecución secuencial o exclusiva, añade columnas como:
+Ejecuta la migración incluida:
 
-```sql
-ALTER TABLE ASYNC_JOBS ADD (
-  execution_mode VARCHAR2(20) DEFAULT 'parallel' NOT NULL,
-  lock_key       VARCHAR2(200)
-);
+```bash
+sqlplus usuario/password@db @sql/migrate_async_jobs_concurrency.sql
 ```
 
 ### 3. Índices recomendados
 
 ```sql
-CREATE INDEX IDX_ASYNC_JOBS_STATUS_NAME ON ASYNC_JOBS(status, name);
+CREATE INDEX IDX_ASYNC_JOBS_STATUS_NAME ON ASYNC_JOBS(status, procedure_name);
 CREATE INDEX IDX_ASYNC_JOBS_LOCK_KEY_STATUS ON ASYNC_JOBS(lock_key, status, created_at);
 ```
 
