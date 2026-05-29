@@ -35,7 +35,7 @@ curl http://localhost:3000/ping \
 ✅ API RESTful para Oracle  
 ✅ Procedimientos y Funciones con IN/OUT  
 ✅ Múltiples OUT parameters (FIXED en v1.0.0)  
-✅ Jobs Asíncronos  
+✅ Jobs Asíncronos con control de concurrencia  
 ✅ Autenticación + Restricción de IPs  
 ✅ Manejo automático de tipos (NUMBER, VARCHAR2, DATE)  
 
@@ -61,6 +61,8 @@ curl http://localhost:3000/ping \
 | Ejemplos de código | [docs/getting-started/GUIA_RAPIDA.md](docs/getting-started/GUIA_RAPIDA.md) |
 | Configurar .env | [docs/getting-started/CONFIGURACION.md](docs/getting-started/CONFIGURACION.md) |
 | API Reference | [docs/api-reference/ENDPOINTS.md](docs/api-reference/ENDPOINTS.md) |
+| Jobs asíncronos | [docs/api-reference/ASYNC_JOBS.md](docs/api-reference/ASYNC_JOBS.md) |
+| Configurar ejecución secuencial o exclusiva | [docs/api-reference/ASYNC_JOBS.md](docs/api-reference/ASYNC_JOBS.md) |
 | Desplegar producción | [docs/deployment/DEPLOYMENT.md](docs/deployment/DEPLOYMENT.md) |
 | Publicar en GitHub | [docs/release/PUBLISH_GUIDE.md](docs/release/PUBLISH_GUIDE.md) |
 | **Todo lo anterior** | **[docs/INDEX.md](docs/INDEX.md)** ⭐ |
@@ -118,14 +120,16 @@ Cada instancia se identifica de las siguientes maneras:
 
 ### 📋 Sistema de Jobs Asíncronos
 
-El sistema de jobs permite ejecutar procedimientos en segundo plano con monitoreo en tiempo real:
+El sistema de jobs permite ejecutar procedimientos en segundo plano con monitoreo en tiempo real y políticas de concurrencia por procedimiento o clave lógica:
 
 ```javascript
-// Crear job
+// Crear job secuencial
 const res = await fetch('/procedure/async', {
   method: 'POST',
   body: JSON.stringify({
     name: "PROC_LARGO",
+    execution_mode: "sequential",
+    lock_key: "PROC_LARGO",
     params: [{ name: "p1", value: 100 }]
   })
 });
@@ -142,8 +146,10 @@ console.log(`Estado: ${job.status} (${job.progress}%)`);
 - ✅ Persistencia en Oracle (sobrevive a reinicios)
 - ✅ Limpieza automática de jobs antiguos
 - ✅ Mensajes de error mejorados
+- ✅ Modos `parallel`, `sequential` y `exclusive`
+- ✅ Soporte para `lock_key` para serializar ejecuciones
 
-**Documentación completa:** [docs/ASYNC_JOBS.md](docs/ASYNC_JOBS.md)
+**Documentación completa:** [docs/api-reference/ASYNC_JOBS.md](docs/api-reference/ASYNC_JOBS.md)
 
 ## Funcionalidades destacadas
 
@@ -202,7 +208,8 @@ El backend maneja automáticamente la nomenclatura de objetos Oracle mediante la
 }
 ```
 
-**⚠️ Nota sobre conflictos de nomenclatura:** Si existe un PACKAGE con el mismo nombre que un SCHEMA/USER, Oracle interpretará `SCHEMA.FUNCION` como `PACKAGE.FUNCION`. En estos casos, usa sinónimos:
+**⚠️ Nota sobre conflictos de nomenclatura:** Si existe un PACKAGE con el mismo nombre que un SCHEMA/USER, Oracle interpretará `SCHEMA.FUNCION` como `PACKAGE.FUNCION`. En estos casos, usa sinónimos o especifica el nombre completo según corresponda.
+
 ```sql
 CREATE SYNONYM EXISTE_PROC_CAB FOR WORKFLOW.EXISTE_PROC_CAB;
 ```
@@ -228,15 +235,15 @@ CREATE SYNONYM EXISTE_PROC_CAB FOR WORKFLOW.EXISTE_PROC_CAB;
 ## 📚 Documentación
 
 ### Guías Principales
-- **[GUIA_RAPIDA.md](GUIA_RAPIDA.md)** - ⭐ Guía de inicio rápido y referencia
+- **[docs/INDEX.md](docs/INDEX.md)** - ⭐ Índice general de documentación
 
 ### Documentación Detallada
-- **[ASYNC_JOBS.md](docs/ASYNC_JOBS.md)** - Sistema de jobs asíncronos
-- **[SCHEMA_FIELD.md](docs/SCHEMA_FIELD.md)** - Campo schema y nomenclatura Oracle
-- **[USO_Y_PRUEBAS.md](docs/USO_Y_PRUEBAS.md)** - Ejemplos de uso completos
-- **[CONFIGURACION_ENV.md](docs/CONFIGURACION_ENV.md)** - Variables de entorno
-- **[DEPLOYMENT.md](docs/DEPLOYMENT.md)** - Despliegue en producción
-- **[FIREWALL_WINDOWS.md](docs/FIREWALL_WINDOWS.md)** - Configuración de firewall
+- **[docs/api-reference/ASYNC_JOBS.md](docs/api-reference/ASYNC_JOBS.md)** - Sistema de jobs asíncronos y concurrencia
+- **[docs/api-reference/SCHEMA_FIELD.md](docs/api-reference/SCHEMA_FIELD.md)** - Campo schema y nomenclatura Oracle
+- **[USO_Y_PRUEBAS.md](USO_Y_PRUEBAS.md)** - Ejemplos de uso completos
+- **[docs/getting-started/CONFIGURACION.md](docs/getting-started/CONFIGURACION.md)** - Variables de entorno
+- **[docs/deployment/DEPLOYMENT.md](docs/deployment/DEPLOYMENT.md)** - Despliegue en producción
+- **[docs/deployment/FIREWALL_WINDOWS.md](docs/deployment/FIREWALL_WINDOWS.md)** - Configuración de firewall
 
 ### 🧪 Ejemplo y Tests
 
@@ -257,8 +264,7 @@ node tests/test.js procedure
 
 ## Créditos y autoría
 
-Este proyecto fue desarrollado en colaboración entre [jferreyradev](https://github.com/jferreyradev/jferreyradev) y GitHub Copilot, combinando experiencia humana y asistencia de IA para lograr una solución robusta y documentada.
+Este proyecto fue desarrollado en colaboración entre [jferreyradev](https://github.com/jferreyradev/jferreyradev) y GitHub Copilot, combinando experiencia humana y asistencia de IA para lograr una solución práctica y documentada.
 
 ## Licencia
 MIT
-
