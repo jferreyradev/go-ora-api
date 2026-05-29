@@ -20,6 +20,8 @@ CREATE TABLE ASYNC_JOBS (
     JOB_ID VARCHAR2(32) PRIMARY KEY,
     STATUS VARCHAR2(20) NOT NULL CHECK (STATUS IN ('pending', 'running', 'completed', 'failed')),
     PROCEDURE_NAME VARCHAR2(200) NOT NULL,
+    EXECUTION_MODE VARCHAR2(20) DEFAULT 'parallel' NOT NULL CHECK (EXECUTION_MODE IN ('parallel', 'sequential', 'exclusive')),
+    LOCK_KEY VARCHAR2(200) NOT NULL,
     PARAMS CLOB,
     START_TIME TIMESTAMP NOT NULL,
     END_TIME TIMESTAMP,
@@ -32,6 +34,8 @@ CREATE TABLE ASYNC_JOBS (
 
 -- Índices para mejorar rendimiento
 CREATE INDEX IDX_ASYNC_JOBS_STATUS ON ASYNC_JOBS(STATUS);
+CREATE INDEX IDX_ASYNC_JOBS_STATUS_NAME ON ASYNC_JOBS(STATUS, PROCEDURE_NAME);
+CREATE INDEX IDX_ASYNC_JOBS_LOCK_KEY_STATUS ON ASYNC_JOBS(LOCK_KEY, STATUS, CREATED_AT);
 CREATE INDEX IDX_ASYNC_JOBS_START_TIME ON ASYNC_JOBS(START_TIME);
 CREATE INDEX IDX_ASYNC_JOBS_CREATED_AT ON ASYNC_JOBS(CREATED_AT);
 
@@ -40,6 +44,8 @@ COMMENT ON TABLE ASYNC_JOBS IS 'Almacena información de jobs asíncronos ejecut
 COMMENT ON COLUMN ASYNC_JOBS.JOB_ID IS 'ID único del job (32 caracteres hex)';
 COMMENT ON COLUMN ASYNC_JOBS.STATUS IS 'Estado del job: pending, running, completed, failed';
 COMMENT ON COLUMN ASYNC_JOBS.PROCEDURE_NAME IS 'Nombre del procedimiento ejecutado';
+COMMENT ON COLUMN ASYNC_JOBS.EXECUTION_MODE IS 'Modo de ejecución: parallel, sequential, exclusive';
+COMMENT ON COLUMN ASYNC_JOBS.LOCK_KEY IS 'Clave lógica de concurrencia por job';
 COMMENT ON COLUMN ASYNC_JOBS.PARAMS IS 'Parámetros del procedimiento en formato JSON';
 COMMENT ON COLUMN ASYNC_JOBS.START_TIME IS 'Hora de inicio del job';
 COMMENT ON COLUMN ASYNC_JOBS.END_TIME IS 'Hora de finalización del job';
@@ -82,18 +88,10 @@ PROMPT ========================================
 PROMPT Tabla ASYNC_JOBS creada exitosamente
 PROMPT Índices creados:
 PROMPT - IDX_ASYNC_JOBS_STATUS
+PROMPT - IDX_ASYNC_JOBS_STATUS_NAME
+PROMPT - IDX_ASYNC_JOBS_LOCK_KEY_STATUS
 PROMPT - IDX_ASYNC_JOBS_START_TIME
 PROMPT - IDX_ASYNC_JOBS_CREATED_AT
 PROMPT 
 PROMPT Procedimiento CLEANUP_OLD_ASYNC_JOBS creado
 PROMPT ========================================
-
-    v_deleted := SQL%ROWCOUNT;
-    COMMIT;
-    
-    DBMS_OUTPUT.PUT_LINE('Eliminados ' || v_deleted || ' jobs antiguos');
-END;
-/
-
--- Verificar creación
-SELECT 'Tabla ASYNC_JOBS creada exitosamente' AS STATUS FROM DUAL;
