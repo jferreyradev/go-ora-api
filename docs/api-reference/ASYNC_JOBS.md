@@ -121,17 +121,20 @@ CREATE INDEX IDX_ASYNC_JOBS_STATUS_NAME ON ASYNC_JOBS(status, procedure_name);
 CREATE INDEX IDX_ASYNC_JOBS_LOCK_KEY_STATUS ON ASYNC_JOBS(lock_key, status, created_at);
 ```
 
-### 4. Crear Procedimientos de Prueba (Opcional)
+### 4. Crear Paquete de Prueba (Opcional)
 
 ```bash
 sqlplus usuario/password@db @sql/create_test_procedures.sql
 ```
 
-Procedimientos creados:
-- `PROC_TEST` - Procedimiento simple
-- `PROC_TEST_DEMORA` - Simula operación lenta
-- `PROC_TEST_PARAMS` - Múltiples parámetros
-- `PROC_TEST_ERROR` - Manejo de errores
+Paquete creado: **PKG_TEST** con los siguientes procedimientos:
+- `PKG_TEST.TEST` - Procedimiento simple
+- `PKG_TEST.TEST_DEMORA_LOOP` - Simula operación lenta (con timestamp)
+- `PKG_TEST.TEST_DEMORA_QUERY` - Simula operación lenta (con consulta, menos CPU)
+- `PKG_TEST.TEST_PARAMS` - Múltiples parámetros
+- `PKG_TEST.TEST_CURSOR` - Retorna cursor
+- `PKG_TEST.TEST_ERROR` - Manejo de errores
+- `PKG_TEST.TEST_DML` - Operaciones DML
 
 ---
 
@@ -147,7 +150,7 @@ const response = await fetch('http://localhost:3000/procedure/async', {
     'Authorization': 'Bearer test1'
   },
   body: JSON.stringify({
-    name: "PROC_TEST_DEMORA",
+    name: "PKG_TEST.TEST_DEMORA_QUERY",
     execution_mode: "parallel",
     params: [
       { 

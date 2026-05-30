@@ -802,12 +802,22 @@ type AppConfig struct {
 }
 
 // Carga la configuraci├│n desde variables de entorno y argumentos, valida obligatorias
+// Carga la configuración desde variables de entorno y argumentos, valida obligatorias
 func loadConfig() AppConfig {
 	envFile := ".env"
+	// Ignorar flags especiales al buscar archivo .env
 	if len(os.Args) > 1 && os.Args[1] != "" {
-		envFile = os.Args[1]
-	} else if customEnv := os.Getenv("ENV_FILE"); customEnv != "" {
-		envFile = customEnv
+		arg := strings.ToLower(os.Args[1])
+		// Solo usar como archivo .env si NO es un flag especial
+		if arg != "--check" && arg != "-c" && arg != "check" &&
+			arg != "--help" && arg != "-h" && arg != "help" {
+			envFile = os.Args[1]
+		}
+	}
+	if envFile == ".env" {
+		if customEnv := os.Getenv("ENV_FILE"); customEnv != "" {
+			envFile = customEnv
+		}
 	}
 	_ = godotenv.Load(envFile)
 
@@ -816,6 +826,13 @@ func loadConfig() AppConfig {
 	host := os.Getenv("ORACLE_HOST")
 	port := os.Getenv("ORACLE_PORT")
 	service := os.Getenv("ORACLE_SERVICE")
+
+	// Limpiar comillas simples o dobles si existen
+	// (godotenv las incluye literalmente, pero algunos sistemas las necesitan en el .env)
+	password = strings.Trim(password, "'\"")
+	user = strings.Trim(user, "'\"")
+	host = strings.Trim(host, "'\"")
+	service = strings.Trim(service, "'\"")
 
 	missing := []string{}
 	if user == "" {
@@ -894,6 +911,224 @@ func openOracleConnection(cfg AppConfig) (*sql.DB, error) {
 	return database, nil
 }
 
+// checkRequirements verifica que todos los requisitos estén configurados correctamente
+func checkRequirements(cfg AppConfig) int {
+	fmt.Println("======================================")
+	fmt.Println("🔍 VERIFICACIÓN DE REQUISITOS")
+	fmt.Println("======================================")
+	fmt.Println()
+
+	successCount := 0
+	warningCount := 0
+	errorCount := 0
+
+	// [1/6] Configuración (.env)
+	fmt.Println("[1/6] Configuración (.env)")
+	envFile := ".env"
+	if len(os.Args) > 1 && os.Args[1] != "" && os.Args[1] != "--check" && os.Args[1] != "-c" && os.Args[1] != "check" {
+		envFile = os.Args[1]
+	}
+	if _, err := os.Stat(envFile); err == nil {
+		fmt.Printf("  ✅ Archivo %s encontrado\n", envFile)
+		successCount++
+	} else {
+		fmt.Printf("  ⚠️  Archivo %s no encontrado (usando variables de entorno del sistema)\n", envFile)
+		warningCount++
+	}
+
+	// Verificar variables requeridas
+	requiredVars := []string{"ORACLE_USER", "ORACLE_PASSWORD", "ORACLE_HOST", "ORACLE_SERVICE"}
+	for _, v := range requiredVars {
+		if val := os.Getenv(v); val != "" {
+			fmt.Printf("  ✅ %s configurado\n", v)
+			successCount++
+		} else {
+			fmt.Printf("  ❌ %s NO configurado\n", v)
+			errorCount++
+		}
+	}
+
+	// Variables opcionales
+	if os.Getenv("API_ALLOWED_IPS") == "" {
+		fmt.Println("  ⚠️  API_ALLOWED_IPS no configurado (usará 0.0.0.0 - acepta todas las IPs)")
+		warningCount++
+	} else {
+		fmt.Println("  ✅ API_ALLOWED_IPS configurado")
+		successCount++
+	}
+
+	if os.Getenv("API_TOKEN") != "" {
+		fmt.Println("  ✅ API_TOKEN configurado")
+		successCount++
+	} else {
+		fmt.Println("  ⚠️  API_TOKEN no configurado (autenticación deshabilitada)")
+		warningCount++
+	}
+	fmt.Println()
+
+	// [2/6] Conectividad de Red
+	fmt.Println("[2/6] Conectividad de Red")
+	// Resolver hostname
+	if ips, err := net.LookupHost(cfg.OracleHost); err == nil {
+		fmt.Printf("  ✅ Hostname '%s' resuelve a %v\n", cfg.OracleHost, ips)
+		successCount++
+	} else {
+		fmt.Printf("  ❌ Hostname '%s' no se puede resolver: %v\n", cfg.OracleHost, err)
+		errorCount++
+	}
+
+	// Verificar puerto Oracle accesible
+	address := net.JoinHostPort(cfg.OracleHost, cfg.OraclePort)
+	conn, err := net.DialTimeout("tcp", address, 5*time.Second)
+	if err == nil {
+		conn.Close()
+		fmt.Printf("  ✅ Puerto %s accesible\n", cfg.OraclePort)
+		successCount++
+	} else {
+		fmt.Printf("  ❌ Puerto %s no accesible: %v\n", cfg.OraclePort, err)
+		errorCount++
+	}
+
+	// Verificar puerto API disponible
+	listener, err := net.Listen("tcp", ":"+cfg.ListenPort)
+	if err == nil {
+		listener.Close()
+		fmt.Printf("  ✅ Puerto API %s disponible\n", cfg.ListenPort)
+		successCount++
+	} else {
+		fmt.Printf("  ⚠️  Puerto API %s ya en uso\n", cfg.ListenPort)
+		warningCount++
+	}
+	fmt.Println()
+
+	// [3/6] Conexión a Oracle
+	fmt.Println("[3/6] Conexión a Oracle")
+	testDB, err := openOracleConnection(cfg)
+	if err != nil {
+		fmt.Printf("  ❌ No se pudo conectar a Oracle: %v\n", err)
+		errorCount++
+		fmt.Println()
+	} else {
+		defer testDB.Close()
+		fmt.Println("  ✅ Conectado a Oracle exitosamente")
+		successCount++
+
+		// Obtener versión de Oracle
+		var version string
+		err := testDB.QueryRow("SELECT banner FROM v$version WHERE ROWNUM = 1").Scan(&version)
+		if err == nil {
+			fmt.Printf("  ℹ️  Versión Oracle: %s\n", version)
+		}
+		fmt.Println()
+
+		// [4/6] Estructura de Base de Datos
+		fmt.Println("[4/6] Estructura de Base de Datos")
+
+		// Verificar tabla ASYNC_JOBS
+		var count int
+		err = testDB.QueryRow("SELECT COUNT(*) FROM user_tables WHERE table_name = 'ASYNC_JOBS'").Scan(&count)
+		if err == nil && count > 0 {
+			fmt.Println("  ✅ Tabla ASYNC_JOBS existe")
+			successCount++
+		} else {
+			fmt.Println("  ⚠️  Tabla ASYNC_JOBS no encontrada (ejecutar: sql/create_async_jobs_table.sql)")
+			warningCount++
+		}
+
+		// Verificar tabla QUERY_LOG
+		err = testDB.QueryRow("SELECT COUNT(*) FROM user_tables WHERE table_name = 'QUERY_LOG'").Scan(&count)
+		if err == nil && count > 0 {
+			fmt.Println("  ✅ Tabla QUERY_LOG existe")
+			successCount++
+		} else {
+			fmt.Println("  ⚠️  Tabla QUERY_LOG no encontrada (ejecutar: sql/create_query_log_table.sql)")
+			warningCount++
+		}
+
+		// Verificar paquete PKG_TEST (opcional)
+		err = testDB.QueryRow("SELECT COUNT(*) FROM user_objects WHERE object_name = 'PKG_TEST' AND object_type = 'PACKAGE'").Scan(&count)
+		if err == nil && count > 0 {
+			fmt.Println("  ✅ Paquete PKG_TEST existe")
+			successCount++
+		} else {
+			fmt.Println("  ⚠️  Paquete PKG_TEST no encontrado (opcional, ejecutar: sql/create_test_procedures.sql)")
+			warningCount++
+		}
+		fmt.Println()
+	}
+
+	// [5/6] Sistema Operativo
+	fmt.Println("[5/6] Sistema Operativo")
+	// Verificar directorio log
+	logDir := "log"
+	if _, err := os.Stat(logDir); os.IsNotExist(err) {
+		if err := os.MkdirAll(logDir, 0755); err == nil {
+			fmt.Printf("  ✅ Directorio /%s creado\n", logDir)
+			successCount++
+		} else {
+			fmt.Printf("  ❌ No se pudo crear directorio /%s: %v\n", logDir, err)
+			errorCount++
+		}
+	} else {
+		// Verificar permisos de escritura
+		testFile := logDir + "/test_write.tmp"
+		if err := os.WriteFile(testFile, []byte("test"), 0644); err == nil {
+			os.Remove(testFile)
+			fmt.Printf("  ✅ Directorio /%s existe y es escribible\n", logDir)
+			successCount++
+		} else {
+			fmt.Printf("  ❌ Directorio /%s no es escribible: %v\n", logDir, err)
+			errorCount++
+		}
+	}
+
+	// Información del sistema
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	fmt.Printf("  ℹ️  Sistema: %s/%s\n", runtime.GOOS, runtime.GOARCH)
+	fmt.Println()
+
+	// [6/6] Resumen
+	fmt.Println("[6/6] Resumen")
+	fmt.Printf("  ✅ %d verificaciones exitosas\n", successCount)
+	if warningCount > 0 {
+		fmt.Printf("  ⚠️  %d advertencias (no críticas)\n", warningCount)
+	}
+	if errorCount > 0 {
+		fmt.Printf("  ❌ %d errores críticos\n", errorCount)
+	}
+	fmt.Println()
+
+	fmt.Println("======================================")
+	if errorCount > 0 {
+		fmt.Println("❌ ERRORES CRÍTICOS ENCONTRADOS")
+		fmt.Println("======================================")
+		fmt.Println()
+		fmt.Println("Corrige los errores antes de iniciar el servidor.")
+		return 1
+	} else if warningCount > 0 {
+		fmt.Println("⚠️  SISTEMA FUNCIONAL CON ADVERTENCIAS")
+		fmt.Println("======================================")
+		fmt.Println()
+		fmt.Println("El sistema puede iniciarse, pero revisa las advertencias.")
+		fmt.Println()
+		fmt.Println("Iniciar servidor:")
+		fmt.Println("  go run main.go")
+		fmt.Println("  ./go-oracle-api.exe")
+		return 2
+	} else {
+		fmt.Println("✅ SISTEMA LISTO PARA EJECUTAR")
+		fmt.Println("======================================")
+		fmt.Println()
+		fmt.Println("Todos los requisitos están configurados correctamente.")
+		fmt.Println()
+		fmt.Println("Iniciar servidor:")
+		fmt.Println("  go run main.go")
+		fmt.Println("  ./go-oracle-api.exe")
+		return 0
+	}
+}
+
 func main() {
 	// ===============================
 	// 1. Mostrar ayuda si se solicita
@@ -902,7 +1137,7 @@ func main() {
 		arg := strings.ToLower(os.Args[1])
 		if arg == "-h" || arg == "--help" || arg == "help" {
 			fmt.Print(`
-Go Oracle API - Opciones de ejecuci├│n
+Go Oracle API - Opciones de ejecución
 
 USO:
   go run main.go [archivo_env] [puerto] [nombre_instancia]
@@ -910,27 +1145,40 @@ USO:
 
 Argumentos opcionales:
   archivo_env       Archivo de variables de entorno (por defecto .env)
-  puerto            Puerto donde escuchar├í la API (por defecto 8080)
+  puerto            Puerto donde escuchará la API (por defecto 8080)
   nombre_instancia  Nombre para identificar esta instancia (por defecto auto)
 
-Tambi├®n puedes usar variables de entorno:
-  ENV_FILE          Archivo de configuraci├│n
+Comandos especiales:
+  --check, -c, check    Verificar requisitos y configuración sin iniciar servidor
+  --help, -h, help      Mostrar esta ayuda
+
+También puedes usar variables de entorno:
+  ENV_FILE          Archivo de configuración
   PORT              Puerto de escucha
   INSTANCE_NAME     Nombre de la instancia
 
 Ejemplos:
+  go run main.go --check              # Verificar configuración
   go run main.go .env1 8081 "Produccion"
   go run main.go .env2 8082 "Testing"
   
   set INSTANCE_NAME=Desarrollo
   go run main.go .env3 8083
 
-Para m├ís informaci├│n consulta:
+Para más información consulta:
   - README.md
-  - docs/CONFIGURACION_ENV.md
+  - docs/getting-started/QUICKSTART.md
   - Endpoint /docs
+  - Endpoint /health (monitoreo)
 `)
 			os.Exit(0)
+		}
+
+		// Verificar si se solicitó verificación de requisitos
+		if arg == "--check" || arg == "-c" || arg == "check" {
+			cfg := loadConfig()
+			exitCode := checkRequirements(cfg)
+			os.Exit(exitCode)
 		}
 	}
 
@@ -966,6 +1214,7 @@ Para m├ís informaci├│n consulta:
 	// 3. Registro de todos los endpoints
 	// ===============================
 	http.HandleFunc("/docs", docsHandler)
+	http.HandleFunc("/health", healthHandler) // Sin autenticación para monitoreo
 	http.HandleFunc("/logs", logRequest(authMiddleware(logsHandler)))
 	http.HandleFunc("/upload", logRequest(authMiddleware(uploadHandler)))
 	http.HandleFunc("/download", logRequest(authMiddleware(downloadHandler)))
@@ -2162,6 +2411,71 @@ func pingHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+}
+
+// healthHandler proporciona información detallada del estado del sistema
+// No requiere autenticación para permitir monitoreo externo
+func healthHandler(w http.ResponseWriter, r *http.Request) {
+	enableCORS(&w, r)
+	w.Header().Set("Content-Type", "application/json")
+
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	health := map[string]interface{}{
+		"status":    "ok",
+		"timestamp": time.Now().Format(time.RFC3339),
+	}
+
+	// Verificar conexión a Oracle
+	if err := db.Ping(); err != nil {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		health["status"] = "error"
+		health["oracle_connection"] = "failed"
+		health["error"] = err.Error()
+		json.NewEncoder(w).Encode(health)
+		return
+	}
+	health["oracle_connection"] = "ok"
+
+	// Obtener versión de Oracle
+	var version string
+	if err := db.QueryRow("SELECT banner FROM v$version WHERE ROWNUM = 1").Scan(&version); err == nil {
+		health["database_version"] = version
+	}
+
+	// Estadísticas de jobs
+	jobManager.mu.RLock()
+	pendingJobs := 0
+	runningJobs := 0
+	for _, job := range jobManager.jobs {
+		if job.Status == JobStatusPending {
+			pendingJobs++
+		} else if job.Status == JobStatusRunning {
+			runningJobs++
+		}
+	}
+	jobManager.mu.RUnlock()
+
+	health["async_jobs"] = map[string]interface{}{
+		"pending": pendingJobs,
+		"running": runningJobs,
+		"total":   len(jobManager.jobs),
+	}
+
+	// Información del sistema
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	health["system"] = map[string]interface{}{
+		"go_version":   runtime.Version(),
+		"goroutines":   runtime.NumGoroutine(),
+		"memory_alloc": fmt.Sprintf("%.2f MB", float64(m.Alloc)/1024/1024),
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(health)
 }
 
 func queryHandler(w http.ResponseWriter, r *http.Request) {

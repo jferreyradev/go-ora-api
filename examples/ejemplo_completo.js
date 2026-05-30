@@ -62,7 +62,7 @@ async function ejemplo3_procedimientoSincrono() {
     log("EJEMPLO 3", "Ejecutar procedimiento síncrono");
     
     const res = await request('POST', '/procedure', {
-        name: 'PROC_TEST',
+        name: 'PKG_TEST.TEST',
         params: [
             { name: 'p_input', value: 'Hola desde Node.js', direction: 'IN', type: 'STRING' },
             { name: 'p_output', direction: 'OUT', type: 'STRING' }
@@ -78,7 +78,7 @@ async function ejemplo4_procedimientoAsincrono() {
     
     // Crear job
     const createRes = await request('POST', '/procedure/async', {
-        name: 'PROC_TEST_DEMORA',
+        name: 'PKG_TEST.TEST_DEMORA_QUERY',
         params: [
             { name: 'segundos', value: 5, direction: 'IN', type: 'NUMBER' }
         ]

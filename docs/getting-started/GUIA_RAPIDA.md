@@ -25,7 +25,7 @@ cp .env.example .env
 ```bash
 sqlplus user/pass@db @sql/create_async_jobs_table.sql
 sqlplus user/pass@db @sql/create_query_log_table.sql
-sqlplus user/pass@db @sql/create_test_procedures.sql
+sqlplus user/pass@db @sql/create_test_procedures.sql  # Crea paquete PKG_TEST
 ```
 
 ### 3. Iniciar API
@@ -131,7 +131,7 @@ curl -X POST http://localhost:3000/procedure/async \
   -H "Authorization: Bearer test1" \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "PROC_TEST_DEMORA",
+    "name": "PKG_TEST.TEST_DEMORA_QUERY",
     "params": [
       {"name": "segundos", "value": 5, "direction": "IN", "type": "NUMBER"}
     ]
@@ -209,7 +209,7 @@ const res = await fetch('http://localhost:3000/procedure', {
     'Content-Type': 'application/json'
   },
   body: JSON.stringify({
-    name: 'PROC_TEST_DEMORA',
+    name: 'PKG_TEST.TEST_DEMORA_QUERY',
     params: [
       { name: 'segundos', value: 10, direction: 'IN', type: 'NUMBER' }
     ]

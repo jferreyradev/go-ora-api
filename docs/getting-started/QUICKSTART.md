@@ -82,6 +82,34 @@ PORT=3000
 
 ## 🧪 Pruebas Básicas
 
+### 0. Verificar requisitos (recomendado)
+
+Antes de iniciar, verifica que todo esté configurado correctamente:
+
+```bash
+# Verificar configuración y requisitos
+go run main.go --check
+# o con el ejecutable:
+./go-oracle-api.exe --check
+```
+
+**Salida esperada:**
+```
+======================================
+🔍 VERIFICACIÓN DE REQUISITOS
+======================================
+
+[1/6] Configuración (.env)
+  ✅ Archivo .env encontrado
+  ✅ ORACLE_USER configurado
+  ✅ ORACLE_PASSWORD configurado
+  ...
+
+✅ SISTEMA LISTO PARA EJECUTAR
+```
+
+Si hay errores, el comando te indicará qué corregir antes de iniciar.
+
 ### 1. Verificar conexión
 
 ```bash
@@ -158,8 +186,11 @@ curl -X POST http://localhost:3000/procedure \
 - [ ] Go 1.20+ instalado (o ejecutable descargado)
 - [ ] Oracle accesible y funcionando
 - [ ] Archivo `.env` creado y configurado
+- [ ] Verificación de requisitos exitosa (`--check`)
 - [ ] Ping endpoint responde OK
 - [ ] Puedo ejecutar una consulta SELECT
+
+**Tip:** Usa `go run main.go --check` para verificar todos los requisitos automáticamente.
 
 ---
 

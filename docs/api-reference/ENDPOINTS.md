@@ -7,6 +7,7 @@ Documentación completa de todos los endpoints disponibles
 ## 📋 Tabla de Contenidos
 
 - [Health Check](#health-check-ping)
+- [Health Status](#health-status-health)
 - [Consultas](#consultas-query--exec)
 - [Procedimientos](#procedimientos-procedure)
 - [Jobs Asíncronos](#jobs-asíncronos)
@@ -37,6 +38,59 @@ curl -H "Authorization: Bearer test1" http://localhost:3000/ping
 ```json
 {"status":"ok"}
 ```
+
+---
+
+## Health Status (`/health`)
+
+Proporciona información detallada del estado del sistema para monitoreo.
+
+**Método:** `GET`
+
+**URL:** `http://localhost:3000/health`
+
+**Autenticación:** No requerida (diseñado para herramientas de monitoreo)
+
+**Ejemplo:**
+```bash
+curl http://localhost:3000/health
+```
+
+**Respuesta (200 OK):**
+```json
+{
+  "status": "ok",
+  "timestamp": "2026-05-30T10:30:00Z",
+  "oracle_connection": "ok",
+  "database_version": "Oracle Database 11g Release 11.2.0.4.0",
+  "async_jobs": {
+    "pending": 2,
+    "running": 1,
+    "total": 15
+  },
+  "system": {
+    "go_version": "go1.20",
+    "goroutines": 12,
+    "memory_alloc": "45.23 MB"
+  }
+}
+```
+
+**Respuesta en caso de error (503 Service Unavailable):**
+```json
+{
+  "status": "error",
+  "timestamp": "2026-05-30T10:30:00Z",
+  "oracle_connection": "failed",
+  "error": "ORA-12514: TNS:listener does not currently know of service"
+}
+```
+
+**Casos de uso:**
+- Kubernetes liveness/readiness probes
+- Docker healthchecks
+- Monitoreo con Prometheus, Nagios, etc.
+- Dashboards de estado del sistema
 
 ---
 
@@ -273,7 +327,7 @@ curl -X POST http://localhost:3000/procedure/async \
   -H "Authorization: Bearer test1" \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "PROC_TEST_DEMORA",
+    "name": "PKG_TEST.TEST_DEMORA_QUERY",
     "params": [
       {"name": "segundos", "value": 5, "direction": "IN", "type": "NUMBER"}
     ]
@@ -299,7 +353,7 @@ curl http://localhost:3000/jobs/a1b2c3d4-e5f6-7890-abcd-ef1234567890 \
 ```json
 {
   "job_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-  "name": "PROC_TEST_DEMORA",
+  "name": "PKG_TEST.TEST_DEMORA_QUERY",
   "status": "running",
   "progress": 50,
   "result": null,
@@ -331,7 +385,7 @@ curl http://localhost:3000/jobs \
   "jobs": [
     {
       "job_id": "...",
-      "name": "PROC_TEST_DEMORA",
+      "name": "PKG_TEST.TEST_DEMORA_QUERY",
       "status": "completed",
       "progress": 100,
       "result": {...},

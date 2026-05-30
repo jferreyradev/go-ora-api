@@ -13,11 +13,15 @@ Puente HTTP seguro y ligero entre Oracle y tus aplicaciones.
 cp .env.example .env
 # Editar .env con credenciales Oracle
 
-# 2. Iniciar
+# 2. Verificar (recomendado)
+go run main.go --check
+# Verifica configuración y conexión antes de iniciar
+
+# 3. Iniciar
 go run main.go
 # o usar: ./go-oracle-api.exe
 
-# 3. Probar
+# 4. Probar
 curl http://localhost:3000/ping \
   -H "Authorization: Bearer test1"
 ```
@@ -57,6 +61,7 @@ curl http://localhost:3000/ping \
 
 | Necesito | Ver |
 |----------|-----|
+| Verificar configuración | `go run main.go --check` o [QUICKSTART.md](docs/getting-started/QUICKSTART.md) |
 | Instalar rápido | [docs/getting-started/QUICKSTART.md](docs/getting-started/QUICKSTART.md) |
 | Ejemplos de código | [docs/getting-started/GUIA_RAPIDA.md](docs/getting-started/GUIA_RAPIDA.md) |
 | Configurar .env | [docs/getting-started/CONFIGURACION.md](docs/getting-started/CONFIGURACION.md) |
