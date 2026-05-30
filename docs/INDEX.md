@@ -10,93 +10,39 @@
 
 1. [📖 Inicio Rápido](getting-started/QUICKSTART.md) - Instalación y primer uso en 5 minutos
 2. [⚙️ Configuración](getting-started/CONFIGURACION.md) - Variables de entorno y setup
-3. [🏃 Guía Rápida](getting-started/GUIA_RAPIDA.md) - Ejemplos básicos de uso
 
 ---
 
-## 📖 Guías Completas
+## 📡 Referencia de API
 
-### 🔧 Uso y Desarrollo
-- [📝 Uso y Pruebas](../USO_Y_PRUEBAS.md) - Guía detallada de endpoints y ejemplos
-- [🏗️ Estructura del Proyecto](../ESTRUCTURA.md) - Organización del código
-- [📊 Trabajar con Parámetros](../SCHEMA_FIELD.md) - Tipos de datos y parámetros
+- [🔗 Endpoints Disponibles](api-reference/ENDPOINTS.md) - Listado completo de operaciones
+- [� Nomenclatura Oracle](api-reference/ORACLE_NAMING.md) - Esquemas, packages y resolución de nombres
+- [⏱️ Jobs Asíncronos](api-reference/ASYNC_JOBS.md) - Sistema de jobs en background con políticas `parallel`, `sequential` y `exclusive`
 
-### 🚀 Despliegue en Producción
+---
+
+## 🚀 Despliegue en Producción
+
 - [🌐 Deployment](deployment/DEPLOYMENT.md) - Guía de despliegue
 - [🔒 Firewall Windows](deployment/FIREWALL_WINDOWS.md) - Configurar firewall
-- [⚡ Trabajos Asíncronos](api-reference/ASYNC_JOBS.md) - Jobs en background, cola secuencial y ejecución exclusiva
-
-### 📡 Referencia de API
-- [🔗 Endpoints Disponibles](api-reference/ENDPOINTS.md) - Listado completo de operaciones
-- [📋 Schema y Campos](api-reference/SCHEMA_FIELD.md) - Tipos de datos soportados
-- [⏱️ Jobs Asíncronos](api-reference/ASYNC_JOBS.md) - Procesos en background, políticas `parallel`, `sequential` y `exclusive`
 
 ---
 
 ## 📦 Release & Versiones
 
-**Información sobre versiones y cómo publicar:**
-
-- [📋 Changelog](release/CHANGELOG.md) - Historial de cambios
-- [📝 Release Notes v1.0.0](release/RELEASE_NOTES.md) - Características v1.0.0
-- [🎯 Release Summary](release/RELEASE_SUMMARY.md) - Resumen ejecutivo
-- [🚀 Publish Guide](release/PUBLISH_GUIDE.md) - Cómo publicar en GitHub
-
----
-
-## 💡 Ejemplos & Casos de Uso
-
-**Código funcional de ejemplo:**
-
-- [💻 Ejemplo Completo](../examples/ejemplo_completo.js) - Node.js con todas las operaciones
-- [📚 Base de Datos Setup](../sql/create_test_procedures.sql) - Scripts SQL para testing
-
----
-
-## 📋 Índice por Categoría
-
-### Configuration (⚙️)
-| Archivo | Descripción |
-|---------|------------|
-| [CONFIGURACION.md](getting-started/CONFIGURACION.md) | Variables de entorno y secretos |
-| [.env.example](../.env.example) | Template de configuración |
-
-### API Reference (📡)
-| Archivo | Descripción |
-|---------|------------|
-| [ENDPOINTS.md](api-reference/ENDPOINTS.md) | Todos los endpoints disponibles |
-| [SCHEMA_FIELD.md](api-reference/SCHEMA_FIELD.md) | Tipos de datos y parámetros |
-| [ASYNC_JOBS.md](api-reference/ASYNC_JOBS.md) | Jobs en background, estado y control de concurrencia |
-
-### Operations (🚀)
-| Archivo | Descripción |
-|---------|------------|
-| [DEPLOYMENT.md](deployment/DEPLOYMENT.md) | Despliegue a producción |
-| [FIREWALL_WINDOWS.md](deployment/FIREWALL_WINDOWS.md) | Configuración de firewall |
-| [USO_Y_PRUEBAS.md](../USO_Y_PRUEBAS.md) | Testing y pruebas |
-
-### Release (📦)
-| Archivo | Descripción |
-|---------|------------|
-| [CHANGELOG.md](release/CHANGELOG.md) | Historial de todas las versiones |
-| [RELEASE_NOTES.md](release/RELEASE_NOTES.md) | Detalles de v1.0.0 |
-| [PUBLISH_GUIDE.md](release/PUBLISH_GUIDE.md) | Publicar release en GitHub |
+- [📋 Changelog](release/CHANGELOG.md) - Historial de cambios y versiones
 
 ---
 
 ## 🎯 Búsqueda Rápida
 
-**¿Qué necesito?** Encuentra la sección:
-
 | Necesito... | Ver... |
 |----------|--------|
 | Instalar y ejecutar | [Inicio Rápido](getting-started/QUICKSTART.md) |
 | Configurar .env | [Configuración](getting-started/CONFIGURACION.md) |
-| Ver ejemplos | [Guía Rápida](getting-started/GUIA_RAPIDA.md) |
 | Llamar un endpoint | [Endpoints](api-reference/ENDPOINTS.md) |
-| Trabajar con parámetros OUT | [Schema & Fields](api-reference/SCHEMA_FIELD.md) |
+| Resolver conflictos de esquemas/packages | [Nomenclatura Oracle](api-reference/ORACLE_NAMING.md) |
 | Usar jobs asíncronos | [Async Jobs](api-reference/ASYNC_JOBS.md) |
-| Configurar ejecución secuencial o exclusiva | [Async Jobs](api-reference/ASYNC_JOBS.md) |
 | Desplegar en producción | [Deployment](deployment/DEPLOYMENT.md) |
 | Abrir puerto en Windows | [Firewall Windows](deployment/FIREWALL_WINDOWS.md) |
 | Ver qué cambió | [Changelog](release/CHANGELOG.md) |

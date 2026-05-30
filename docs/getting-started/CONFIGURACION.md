@@ -177,43 +177,10 @@ API_NO_AUTH=0
 
 ---
 
-## Cómo Aplicar la Configuración
-
-### Paso 1: Crear .env
-```bash
-cp .env.example .env
-```
-
-### Paso 2: Editar con tus valores
-```bash
-# Windows
-notepad .env
-
-# Linux/macOS
-nano .env
-vim .env
-```
-
-### Paso 3: Guardar y ejecutar
-```bash
-# Linux/macOS
-export $(cat .env | xargs)
-go run main.go
-
-# Windows PowerShell
-Get-Content .env | ForEach-Object {
-  if ($_ -match '^\s*([^=\s]+)\s*=\s*(.*)$') {
-    [Environment]::SetEnvironmentVariable($matches[1], $matches[2])
-  }
-}
-.\go-oracle-api.exe
-```
-
----
-
 ## Validación de Configuración
 
-### Verificar conectividad
+Después de crear el archivo `.env`, verificar la conectividad:
+
 ```bash
 curl http://localhost:3000/ping \
   -H "Authorization: Bearer tu_token"
@@ -230,58 +197,22 @@ curl http://localhost:3000/ping \
 
 ### Recomendaciones
 
-1. **Token Fuerte**
-   - Mínimo 16 caracteres
-   - Usar caracteres especiales: `!@#$%^&*`
-   - Cambiar regularmente
-
-2. **IPs Permitidas**
-   - Restricción por red en producción
-   - Usar rangos CIDR en lugar de IPs individuales
-   - Documentar todas las IPs permitidas
-
-3. **Credenciales Oracle**
-   - Usar usuario con permisos mínimos
-   - No compartir `.env` en repositorio
-   - Usar `.env.example` como template
-
-4. **Variables Sensibles**
-   - Nunca loguear credenciales
-   - Usar variables de entorno, no hardcoding
-   - Rotar contraseñas regularmente
+1. **Token Fuerte** - Mínimo 16 caracteres con caracteres especiales
+2. **IPs Permitidas** - Usar rangos CIDR en producción
+3. **Credenciales Oracle** - Usuario con permisos mínimos
+4. **No compartir `.env`** - Usar `.env.example` como template y agregar `.env` al .gitignore
 
 ---
 
 ## Troubleshooting
 
-### Error: "ORA-12514: TNS listener does not know of service name"
-```
-✓ Verificar ORACLE_SERVICE es correcto
-✓ Ejecutar en servidor Oracle: lsnrctl status
-✓ Verificar listeners configurados
-```
-
-### Error: "Connection refused"
-```
-✓ Verificar ORACLE_HOST y ORACLE_PORT
-✓ Ping al servidor: ping 192.168.1.100
-✓ Verificar firewall permite puerto 1521
-```
-
-### Error: "Unauthorized"
-```
-✓ Verificar API_TOKEN en .env y header Authorization
-✓ Header debe ser: Authorization: Bearer tu_token
-✓ Verificar API_NO_AUTH no está seteado a 1 en producción
-```
-
-### Error: "Invalid username/password"
-```
-✓ Verificar ORACLE_USER y ORACLE_PASSWORD
-✓ Verificar credenciales en SQL*Plus
-✓ Verificar usuario existe y está activo
-```
+| Error | Solución |
+|-------|----------|
+| `ORA-12514: TNS listener does not know of service` | Verificar `ORACLE_SERVICE` y ejecutar `lsnrctl status` |
+| `Connection refused` | Verificar `ORACLE_HOST`, `ORACLE_PORT` y firewall |
+| `Unauthorized` | Verificar `API_TOKEN` coincide con header `Authorization: Bearer` |
+| `Invalid username/password` | Verificar `ORACLE_USER` y `ORACLE_PASSWORD` |
 
 ---
 
-Para más ayuda, ver [Índice de Documentación](../INDEX.md)
+Para más información, ver [Índice de Documentación](../INDEX.md)

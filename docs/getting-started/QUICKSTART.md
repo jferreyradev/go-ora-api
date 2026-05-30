@@ -76,7 +76,7 @@ API_ALLOWED_IPS=127.0.0.1,::1,localhost
 PORT=3000
 ```
 
-**Más detalles:** Ver [Configuración Completa](CONFIGURACION.md)
+> **Configuración completa:** Ver [CONFIGURACION.md](CONFIGURACION.md) para todas las variables disponibles, ejemplos y mejores prácticas.
 
 ---
 

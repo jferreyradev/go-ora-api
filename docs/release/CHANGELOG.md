@@ -10,36 +10,22 @@ Historial de todas las versiones de Go Oracle API
 
 #### ✨ Características Principales
 - **API RESTful para Oracle** - Acceso HTTP a base de datos Oracle sin necesidad de drivers en clientes
-- **Soporte completo para Procedimientos y Funciones** - Ejecución de PL/SQL con parámetros IN/OUT
+- **Soporte completo para Procedimientos y Funciones** - Ejecución de PL/SQL con parámetros IN/OUT/IN OUT
 - **Jobs Asíncronos** - Ejecución de procedimientos de larga duración con monitoreo de progreso
+  - Políticas de concurrencia: `parallel`, `sequential`, `exclusive`
+  - Sistema de cola para ejecución secuencial
 - **Manejo Inteligente de Tipos de Datos** - Detección automática de NUMBER, VARCHAR2, DATE
-- **CORS y Autenticación** - Seguridad mediante tokens Bearer
+- **CORS y Autenticación** - Seguridad mediante tokens Bearer + restricción por IPs
 
 #### 🐛 Bug Fixes
-- **CRITICAL: Múltiples parámetros OUT** - Fixed issue donde solo se devolvía el último parámetro OUT en procedimientos
-  - Cambio: Preasignar buffers fuera del loop en lugar de como variables locales
+- **CRITICAL: Múltiples parámetros OUT** - Corregido error donde solo se devolvía el último parámetro OUT
+  - Problema: Buffers de parámetros OUT creados como variables locales perdían scope
+  - Solución: Pre-asignar todos los buffers fuera del loop con referencias persistentes
   - Impacto: Ahora se devuelven correctamente TODOS los parámetros de salida (NUMBER, VARCHAR2, DATE)
-  - Ejemplo: Procedimiento con 3 OUT parameters ahora devuelve los 3 valores correctamente
-
-#### 📚 Documentación Completa
-- README.md - Guía principal y características
-- GUIA_RAPIDA.md - Referencia rápida con ejemplos
-- docs/ASYNC_JOBS.md - Sistema de jobs asíncronos
-- docs/CONFIGURACION_ENV.md - Variables de entorno
-- docs/DEPLOYMENT.md - Guía de despliegue
-- docs/FIREWALL_WINDOWS.md - Configuración de firewall
-- docs/SCHEMA_FIELD.md - Nomenclatura Oracle
-- docs/USO_Y_PRUEBAS.md - Ejemplos de uso
-
-#### 📦 Incluido
-- `main.go` - Código fuente completo (~2000 líneas)
-- `go-oracle-api.exe` - Binario compilado (20.36 MB)
-- `sql/` - Scripts de setup (tablas async_jobs, query_log, procedimientos de prueba)
-- `examples/` - Ejemplo completo en Node.js
-- Soporte para múltiples instancias en paralelo
 
 #### 🚀 Endpoints Disponibles
-- `GET /ping` - Health check
+- `GET /ping` - Health check básico
+- `GET /health` - Estado detallado del sistema (para monitoreo)
 - `POST /query` - Consultas SELECT
 - `POST /exec` - INSERT, UPDATE, DELETE, DDL
 - `POST /procedure` - Procedimientos síncrono
@@ -56,6 +42,13 @@ Historial de todas las versiones de Go Oracle API
 - Oracle 11g o superior
 - .env configurado con credenciales
 
+#### 📦 Incluido
+- Código fuente completo
+- Binario compilado Windows (go-oracle-api.exe - 20.36 MB)
+- Scripts SQL para setup (async_jobs, query_log, procedimientos de prueba)
+- Ejemplos completos en Node.js
+- Documentación completa
+
 ---
 
 ## Próximas Versiones (Roadmap)
@@ -70,13 +63,11 @@ Historial de todas las versiones de Go Oracle API
 - [ ] GraphQL endpoint alternativo
 - [ ] Rate limiting por IP
 - [ ] Audit trail completo
-- [ ] Encriptación de credenciales en tránsito
 
 ### v1.3.0 (Planned)
 - [ ] Soporte para múltiples conexiones Oracle
 - [ ] Failover automático
 - [ ] Query caching distribuido
-- [ ] Métricas OpenTelemetry
 
 ---
 

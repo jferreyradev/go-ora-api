@@ -1,12 +1,13 @@
-# 🏗️ Schema y Nomenclatura Oracle
+# 📛 Nomenclatura Oracle
 
-Cómo especificar correctamente nombres de procedimientos y funciones
+Cómo especificar correctamente esquemas, packages y procedimientos/funciones en la API
 
 ---
 
 ## 📋 Tabla de Contenidos
 
 - [Campo schema](#campo-schema)
+- [Notación Oracle](#notación-oracle)
 - [Conflictos Comunes](#conflictos-comunes)
 - [Soluciones](#soluciones)
 - [Ejemplos](#ejemplos)
