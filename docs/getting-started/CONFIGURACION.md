@@ -1,10 +1,24 @@
 # ⚙️ Configuración - Go Oracle API
 
-Guía completa para configurar el archivo `.env`
+Guía completa para configurar la aplicación usando `.env` o `config.yaml`
 
 ---
 
-## Template Básico
+## Opciones de Configuración
+
+Puedes configurar la aplicación de dos formas:
+
+1. **Archivo `.env`** (totalmente compatible con el flujo existente)
+2. **Archivo `config.yaml`** (opcional)
+
+Si ambas fuentes existen, la precedencia es:
+
+1. Variables de entorno ya presentes en el proceso
+2. Valores definidos en `.env`
+3. Valores definidos en `config.yaml`
+4. Valores por defecto
+
+## Template Básico (.env)
 
 Copiar a `.env` en la raíz del proyecto:
 
@@ -31,6 +45,35 @@ PORT=8080
 # Si es 1, desactiva autenticación y restricción de IPs (NO usar en producción)
 API_NO_AUTH=0
 ```
+
+---
+
+## Template Básico (config.yaml)
+
+Crear `config.yaml` en la raíz del proyecto:
+
+```yaml
+oracle:
+  user: usuario
+  password: contraseña
+  host: localhost
+  port: 1521
+  service: servicio_o_sid
+
+api:
+  token: tu_token_seguro
+  allowed_ips:
+    - 127.0.0.1
+    - ::1
+    - 192.168.1.0/24
+    - localhost
+  no_auth: false
+
+server:
+  port: 8080
+```
+
+> `config.yaml` es opcional. Si no existe, la aplicación se comporta igual que antes y sigue usando `.env` y variables de entorno.
 
 ---
 
@@ -179,7 +222,7 @@ API_NO_AUTH=0
 
 ## Validación de Configuración
 
-Después de crear el archivo `.env`, verificar la conectividad:
+Después de crear el archivo `.env` o `config.yaml`, verificar la conectividad:
 
 ```bash
 curl http://localhost:3000/ping \
@@ -200,7 +243,7 @@ curl http://localhost:3000/ping \
 1. **Token Fuerte** - Mínimo 16 caracteres con caracteres especiales
 2. **IPs Permitidas** - Usar rangos CIDR en producción
 3. **Credenciales Oracle** - Usuario con permisos mínimos
-4. **No compartir `.env`** - Usar `.env.example` como template y agregar `.env` al .gitignore
+4. **No compartir secretos** - Usar `.env.example` o `config.yaml` como template local y evitar subir credenciales reales al repositorio
 
 ---
 
