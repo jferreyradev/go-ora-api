@@ -24,6 +24,7 @@ import (
 
 	"github.com/joho/godotenv"
 	_ "github.com/sijms/go-ora/v2"
+	"gopkg.in/yaml.v3"
 )
 
 var db *sql.DB
@@ -801,6 +802,80 @@ type AppConfig struct {
 	ListenPort     string
 }
 
+type yamlString string
+
+func (s *yamlString) UnmarshalYAML(value *yaml.Node) error {
+	var str string
+	if err := value.Decode(&str); err == nil {
+		*s = yamlString(str)
+		return nil
+	}
+
+	var number int
+	if err := value.Decode(&number); err == nil {
+		*s = yamlString(strconv.Itoa(number))
+		return nil
+	}
+
+	return fmt.Errorf("valor YAML inválido para texto: %q", value.Value)
+}
+
+type YAMLConfig struct {
+	Oracle struct {
+		User     string     `yaml:"user"`
+		Password string     `yaml:"password"`
+		Host     string     `yaml:"host"`
+		Port     yamlString `yaml:"port"`
+		Service  string     `yaml:"service"`
+	} `yaml:"oracle"`
+	API struct {
+		Token      string   `yaml:"token"`
+		AllowedIPs []string `yaml:"allowed_ips"`
+		NoAuth     *bool    `yaml:"no_auth"`
+	} `yaml:"api"`
+	Server struct {
+		Port yamlString `yaml:"port"`
+	} `yaml:"server"`
+}
+
+func setEnvIfEmpty(key, value string) {
+	if os.Getenv(key) == "" && value != "" {
+		_ = os.Setenv(key, value)
+	}
+}
+
+func loadYAMLConfig(configFile string) {
+	data, err := os.ReadFile(configFile)
+	if err != nil {
+		return
+	}
+
+	var cfg YAMLConfig
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
+		fmt.Fprintf(os.Stderr, "⚠️ No se pudo leer %s: %v\n", configFile, err)
+		return
+	}
+
+	setEnvIfEmpty("ORACLE_USER", cfg.Oracle.User)
+	setEnvIfEmpty("ORACLE_PASSWORD", cfg.Oracle.Password)
+	setEnvIfEmpty("ORACLE_HOST", cfg.Oracle.Host)
+	setEnvIfEmpty("ORACLE_PORT", string(cfg.Oracle.Port))
+	setEnvIfEmpty("ORACLE_SERVICE", cfg.Oracle.Service)
+	setEnvIfEmpty("API_TOKEN", cfg.API.Token)
+	setEnvIfEmpty("PORT", string(cfg.Server.Port))
+
+	if os.Getenv("API_ALLOWED_IPS") == "" && len(cfg.API.AllowedIPs) > 0 {
+		_ = os.Setenv("API_ALLOWED_IPS", strings.Join(cfg.API.AllowedIPs, ","))
+	}
+	if os.Getenv("API_NO_AUTH") == "" && cfg.API.NoAuth != nil {
+		if *cfg.API.NoAuth {
+			_ = os.Setenv("API_NO_AUTH", "1")
+		} else {
+			_ = os.Setenv("API_NO_AUTH", "0")
+		}
+	}
+}
+
 // Carga la configuraci├│n desde variables de entorno y argumentos, valida obligatorias
 // Carga la configuración desde variables de entorno y argumentos, valida obligatorias
 func loadConfig() AppConfig {
@@ -820,6 +895,7 @@ func loadConfig() AppConfig {
 		}
 	}
 	_ = godotenv.Load(envFile)
+	loadYAMLConfig("config.yaml")
 
 	user := os.Getenv("ORACLE_USER")
 	password := os.Getenv("ORACLE_PASSWORD")
@@ -922,18 +998,29 @@ func checkRequirements(cfg AppConfig) int {
 	warningCount := 0
 	errorCount := 0
 
-	// [1/6] Configuración (.env)
-	fmt.Println("[1/6] Configuración (.env)")
+	// [1/6] Configuración (.env / config.yaml)
+	fmt.Println("[1/6] Configuración (.env / config.yaml)")
 	envFile := ".env"
 	if len(os.Args) > 1 && os.Args[1] != "" && os.Args[1] != "--check" && os.Args[1] != "-c" && os.Args[1] != "check" {
 		envFile = os.Args[1]
+	}
+	yamlFile := "config.yaml"
+	yamlFound := false
+	if _, err := os.Stat(yamlFile); err == nil {
+		fmt.Printf("  ✅ Archivo %s encontrado\n", yamlFile)
+		successCount++
+		yamlFound = true
 	}
 	if _, err := os.Stat(envFile); err == nil {
 		fmt.Printf("  ✅ Archivo %s encontrado\n", envFile)
 		successCount++
 	} else {
-		fmt.Printf("  ⚠️  Archivo %s no encontrado (usando variables de entorno del sistema)\n", envFile)
-		warningCount++
+		if yamlFound {
+			fmt.Printf("  ℹ️  Archivo %s no encontrado (usando config.yaml y/o variables de entorno del sistema)\n", envFile)
+		} else {
+			fmt.Printf("  ⚠️  Archivo %s no encontrado (usando variables de entorno del sistema)\n", envFile)
+			warningCount++
+		}
 	}
 
 	// Verificar variables requeridas

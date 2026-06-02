@@ -9,9 +9,10 @@
 ### Windows
 ```bash
 # 1. Descargar go-oracle-api.exe
-# 2. Crear archivo .env en la misma carpeta
+# 2. Crear archivo .env o config.yaml en la misma carpeta
 # 3. Copiar y editar:
 cp .env.example .env
+# o crear config.yaml con la misma información
 
 # 4. Ejecutar
 .\go-oracle-api.exe
@@ -44,6 +45,7 @@ cd go-oracle-api
 # 2. Copiar y configurar
 cp .env.example .env
 # → Editar .env con tus credenciales Oracle
+#   o crear config.yaml como alternativa
 
 # 3. Compilar (opcional)
 go build -o go-oracle-api.exe
@@ -56,9 +58,9 @@ go run main.go
 
 ---
 
-## ⚙️ Configuración (.env)
+## ⚙️ Configuración (.env o config.yaml)
 
-Crear archivo `.env` en la carpeta del proyecto:
+Puedes crear un archivo `.env` en la carpeta del proyecto:
 
 ```env
 # Base de datos Oracle
@@ -75,6 +77,30 @@ API_ALLOWED_IPS=127.0.0.1,::1,localhost
 # Puerto de escucha
 PORT=3000
 ```
+
+O usar `config.yaml` como alternativa:
+
+```yaml
+oracle:
+  user: tu_usuario
+  password: tu_contraseña
+  host: localhost
+  port: 1521
+  service: tu_servicio
+
+api:
+  token: token_seguro_123
+  allowed_ips:
+    - 127.0.0.1
+    - ::1
+    - localhost
+  no_auth: false
+
+server:
+  port: 3000
+```
+
+> Si existen variables de entorno, `.env` y `config.yaml`, la precedencia es: variables de entorno del proceso → `.env` → `config.yaml` → defaults.
 
 > **Configuración completa:** Ver [CONFIGURACION.md](CONFIGURACION.md) para todas las variables disponibles, ejemplos y mejores prácticas.
 
@@ -185,7 +211,7 @@ curl -X POST http://localhost:3000/procedure \
 
 - [ ] Go 1.20+ instalado (o ejecutable descargado)
 - [ ] Oracle accesible y funcionando
-- [ ] Archivo `.env` creado y configurado
+- [ ] Archivo `.env` o `config.yaml` creado y configurado
 - [ ] Verificación de requisitos exitosa (`--check`)
 - [ ] Ping endpoint responde OK
 - [ ] Puedo ejecutar una consulta SELECT
