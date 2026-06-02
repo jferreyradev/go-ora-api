@@ -1,0 +1,26 @@
+# Configuración YAML opcional para Go Oracle API
+#
+# Este archivo complementa la configuración existente basada en .env.
+# No reemplaza el soporte actual: las variables de entorno y el archivo .env
+# siguen funcionando como hasta ahora.
+#
+# Precedencia:
+# 1. Variables de entorno del sistema
+# 2. Archivo .env
+# 3. config.yaml
+# 4. Valores por defecto
+
+oracle:
+  user: usuario
+  password: contraseña
+  host: localhost
+  port: "1521"
+  service: servicio_o_sid
+
+api:
+  token: tu_token_seguro
+  allowed_ips: []
+  no_auth: false
+
+server:
+  port: "8080"
