@@ -1,9 +1,11 @@
 oracle:
-  user: usuario
-  password: contraseña
-  host: localhost
+  user: "APPUSER"
+  password: "appuser123#"
+  host: "10.6.46.17"
   port: 1521
-  service: servicio_o_sid
+  service: "HTEST01"
+  proxy_schema: "REPORTES"
+  connection_timeout: "30"
 
 api:
   token: tu_token_seguro

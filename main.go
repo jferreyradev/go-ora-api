@@ -10,7 +10,6 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -23,7 +22,7 @@ import (
 	"time"
 
 	"github.com/joho/godotenv"
-	_ "github.com/sijms/go-ora/v2"
+	go_ora "github.com/sijms/go-ora/v2"
 	"gopkg.in/yaml.v3"
 )
 
@@ -794,12 +793,14 @@ func setWindowTitle(title string) {
 
 // Configuraci├│n de la aplicaci├│n
 type AppConfig struct {
-	OracleUser     string
-	OraclePassword string
-	OracleHost     string
-	OraclePort     string
-	OracleService  string
-	ListenPort     string
+	OracleUser              string
+	OraclePassword          string
+	OracleHost              string
+	OraclePort              string
+	OracleService           string
+	OracleProxySchema       string
+	OracleConnectionTimeout string
+	ListenPort              string
 }
 
 type yamlString string
@@ -822,11 +823,13 @@ func (s *yamlString) UnmarshalYAML(value *yaml.Node) error {
 
 type YAMLConfig struct {
 	Oracle struct {
-		User     string     `yaml:"user"`
-		Password string     `yaml:"password"`
-		Host     string     `yaml:"host"`
-		Port     yamlString `yaml:"port"`
-		Service  string     `yaml:"service"`
+		User              string     `yaml:"user"`
+		Password          string     `yaml:"password"`
+		Host              string     `yaml:"host"`
+		Port              yamlString `yaml:"port"`
+		Service           string     `yaml:"service"`
+		ProxySchema       string     `yaml:"proxy_schema"`
+		ConnectionTimeout string     `yaml:"connection_timeout"`
 	} `yaml:"oracle"`
 	API struct {
 		Token      string   `yaml:"token"`
@@ -861,6 +864,12 @@ func loadYAMLConfig(configFile string) {
 	setEnvIfEmpty("ORACLE_HOST", cfg.Oracle.Host)
 	setEnvIfEmpty("ORACLE_PORT", string(cfg.Oracle.Port))
 	setEnvIfEmpty("ORACLE_SERVICE", cfg.Oracle.Service)
+	if cfg.Oracle.ProxySchema != "" {
+		setEnvIfEmpty("ORACLE_PROXY_SCHEMA", cfg.Oracle.ProxySchema)
+	}
+	if cfg.Oracle.ConnectionTimeout != "" {
+		setEnvIfEmpty("ORACLE_CONNECTION_TIMEOUT", cfg.Oracle.ConnectionTimeout)
+	}
 	setEnvIfEmpty("API_TOKEN", cfg.API.Token)
 	setEnvIfEmpty("PORT", string(cfg.Server.Port))
 
@@ -879,29 +888,78 @@ func loadYAMLConfig(configFile string) {
 // Carga la configuraci├│n desde variables de entorno y argumentos, valida obligatorias
 // Carga la configuración desde variables de entorno y argumentos, valida obligatorias
 func loadConfig() AppConfig {
-	envFile := ".env"
-	// Ignorar flags especiales al buscar archivo .env
-	if len(os.Args) > 1 && os.Args[1] != "" {
-		arg := strings.ToLower(os.Args[1])
-		// Solo usar como archivo .env si NO es un flag especial
-		if arg != "--check" && arg != "-c" && arg != "check" &&
-			arg != "--help" && arg != "-h" && arg != "help" {
-			envFile = os.Args[1]
+	envFile := ""
+	configFile := ""
+	envSpecified := false
+	configSpecified := false
+
+	// Parsear argumentos de línea de comandos
+	for i := 1; i < len(os.Args); i++ {
+		arg := os.Args[i]
+		lower := strings.ToLower(arg)
+
+		// Detectar flags nombrados
+		if lower == "--env" || lower == "-e" {
+			if i+1 < len(os.Args) {
+				envFile = os.Args[i+1]
+				envSpecified = true
+				i++ // Saltar el siguiente argumento (el valor)
+			}
+			continue
+		}
+		if lower == "--config" || lower == "-c" {
+			if i+1 < len(os.Args) {
+				configFile = os.Args[i+1]
+				configSpecified = true
+				i++ // Saltar el siguiente argumento (el valor)
+			}
+			continue
+		}
+
+		// Flags especiales que detienen el parseo de archivos
+		if lower == "--check" || lower == "check" || lower == "--help" || lower == "-h" || lower == "help" {
+			continue
+		}
+
+		// Compatibilidad hacia atrás: primer argumento no-flag es el envFile
+		if !strings.HasPrefix(lower, "-") && i == 1 && !envSpecified && !configSpecified {
+			envFile = arg
+			envSpecified = true
 		}
 	}
-	if envFile == ".env" {
-		if customEnv := os.Getenv("ENV_FILE"); customEnv != "" {
-			envFile = customEnv
-		}
+
+	// Validar que se especifique uno de los dos (mutuamente excluyentes)
+	if envSpecified && configSpecified {
+		msg := "❌ Error: No puedes especificar ambos --env y --config simultáneamente.\nUsa UNO de estos:\n  ./go-ora-api --env archivo.env\n  ./go-ora-api --config archivo.yaml"
+		fmt.Fprintln(os.Stderr, msg)
+		_ = os.WriteFile("log/last_error.txt", []byte(msg+"\n"), 0644)
+		os.Exit(1)
 	}
-	_ = godotenv.Load(envFile)
-	loadYAMLConfig("config.yaml")
+
+	if !envSpecified && !configSpecified {
+		msg := "❌ Error: Debes especificar uno de estos:\n  ./go-ora-api --env archivo.env      (cargar desde .env)\n  ./go-ora-api --config archivo.yaml   (cargar desde YAML)\nO usa las variables de entorno:\n  export ENV_FILE=archivo.env\n  export CONFIG_FILE=archivo.yaml"
+		fmt.Fprintln(os.Stderr, msg)
+		_ = os.WriteFile("log/last_error.txt", []byte(msg+"\n"), 0644)
+		os.Exit(1)
+	}
+
+	// Cargar UNO de los dos según lo especificado
+	if envSpecified {
+		_ = godotenv.Load(envFile)
+	} else if configSpecified {
+		loadYAMLConfig(configFile)
+	}
 
 	user := os.Getenv("ORACLE_USER")
 	password := os.Getenv("ORACLE_PASSWORD")
 	host := os.Getenv("ORACLE_HOST")
 	port := os.Getenv("ORACLE_PORT")
 	service := os.Getenv("ORACLE_SERVICE")
+	proxySchema := os.Getenv("ORACLE_PROXY_SCHEMA")
+	connectionTimeout := os.Getenv("ORACLE_CONNECTION_TIMEOUT")
+	if connectionTimeout == "" {
+		connectionTimeout = "30"
+	}
 
 	// Limpiar comillas simples o dobles si existen
 	// (godotenv las incluye literalmente, pero algunos sistemas las necesitan en el .env)
@@ -943,27 +1001,37 @@ func loadConfig() AppConfig {
 	}
 
 	return AppConfig{
-		OracleUser:     user,
-		OraclePassword: password,
-		OracleHost:     host,
-		OraclePort:     port,
-		OracleService:  service,
-		ListenPort:     listenPort,
+		OracleUser:              user,
+		OraclePassword:          password,
+		OracleHost:              host,
+		OraclePort:              port,
+		OracleService:           service,
+		OracleProxySchema:       proxySchema,
+		OracleConnectionTimeout: connectionTimeout,
+		ListenPort:              listenPort,
 	}
 }
 
 // Abre la conexi├│n a Oracle y la retorna
 func openOracleConnection(cfg AppConfig) (*sql.DB, error) {
-	dsn := fmt.Sprintf(
-		"oracle://%s:%s@%s:%s/%s",
-		url.QueryEscape(cfg.OracleUser),
-		url.QueryEscape(cfg.OraclePassword),
+	port, err := strconv.Atoi(cfg.OraclePort)
+	if err != nil {
+		return nil, fmt.Errorf("puerto Oracle inválido: %w", err)
+	}
+
+	connStr := go_ora.BuildUrl(
 		cfg.OracleHost,
-		cfg.OraclePort,
+		port,
 		cfg.OracleService,
+		cfg.OracleUser,
+		cfg.OraclePassword,
+		map[string]string{
+			"CONNECTION TIMEOUT": cfg.OracleConnectionTimeout,
+			"PROXY CLIENT NAME":  cfg.OracleProxySchema,
+		},
 	)
 
-	database, err := sql.Open("oracle", dsn)
+	database, err := sql.Open("oracle", connStr)
 	if err != nil {
 		return nil, fmt.Errorf("error al abrir driver Oracle: %w", err)
 	}
