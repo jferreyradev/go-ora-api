@@ -1,4 +1,4 @@
-module go-oracle-api
+module go-ora-api
 
 go 1.25.1
 
