@@ -9,20 +9,25 @@ Puente HTTP seguro y ligero entre Oracle y tus aplicaciones.
 ### 5 Minutos para Empezar
 
 ```bash
-# 1. Configurar
+# 1. Configurar (elegir UNO de los dos)
+
+## Opción A: Usar .env
 cp .env.example .env
 # Editar .env con credenciales Oracle
 
-# 2. Verificar (recomendado)
-go run main.go --check
-# Verifica configuración y conexión antes de iniciar
+## Opción B: Usar config.yaml
+# Crear config.yaml con credenciales Oracle
 
-# 3. Iniciar
-go run main.go
-# o usar: ./go-oracle-api.exe
+# 2. Verificar (recomendado)
+go run main.go --config config.yaml --check
+# o: go run main.go --env .env --check
+
+# 3. Iniciar (especificar --env O --config, son obligatorios)
+go run main.go --env .env
+# o: go run main.go --config config.yaml
 
 # 4. Probar
-curl http://localhost:3000/ping \
+curl http://localhost:8080/ping \
   -H "Authorization: Bearer test1"
 ```
 

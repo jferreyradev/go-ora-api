@@ -4,19 +4,48 @@ Guía completa para configurar la aplicación usando `.env` o `config.yaml`
 
 ---
 
-## Opciones de Configuración
+## ⚠️ Importante: Fuentes de Configuración (Mutuamente Excluyentes)
 
-Puedes configurar la aplicación de dos formas:
+Debes especificar **UNO de estos** al ejecutar:
 
-1. **Archivo `.env`** (totalmente compatible con el flujo existente)
-2. **Archivo `config.yaml`** (opcional)
+```bash
+# Opción 1: Cargar desde .env
+go run main.go --env archivo.env
+go run main.go -e archivo.env
 
-Si ambas fuentes existen, la precedencia es:
+# Opción 2: Cargar desde config.yaml
+go run main.go --config archivo.yaml
+go run main.go -c archivo.yaml
+
+# NO puedes especificar ambos:
+# go run main.go --env .env --config config.yaml  # Error!
+```
+
+### O usar variables de entorno:
+
+```bash
+# Linux/macOS
+export ENV_FILE="archivo.env"
+go run main.go
+
+# O:
+export CONFIG_FILE="archivo.yaml"
+go run main.go
+
+# Windows PowerShell
+$env:ENV_FILE="archivo.env"
+go run main.go
+```
+
+---
+
+## Precedencia de Valores
+
+Cuando cargas desde `.env` o `config.yaml`, la precedencia es:
 
 1. Variables de entorno ya presentes en el proceso
-2. Valores definidos en `.env`
-3. Valores definidos en `config.yaml`
-4. Valores por defecto
+2. Valores del archivo especificado (`.env` o `config.yaml`)
+3. Valores por defecto (ej: CONNECTION_TIMEOUT=30)
 
 ## Template Básico (.env)
 
@@ -29,6 +58,8 @@ ORACLE_PASSWORD=contraseña
 ORACLE_HOST=localhost
 ORACLE_PORT=1521
 ORACLE_SERVICE=servicio_o_sid
+ORACLE_CONNECTION_TIMEOUT=30
+ORACLE_PROXY_SCHEMA=schema_opcional
 
 # --- Seguridad API ---
 API_TOKEN=tu_token_seguro
@@ -59,6 +90,8 @@ oracle:
   host: localhost
   port: 1521
   service: servicio_o_sid
+  connection_timeout: "30"
+  proxy_schema: schema_opcional
 
 api:
   token: tu_token_seguro
@@ -73,7 +106,7 @@ server:
   port: 8080
 ```
 
-> `config.yaml` es opcional. Si no existe, la aplicación se comporta igual que antes y sigue usando `.env` y variables de entorno.
+---
 
 ---
 

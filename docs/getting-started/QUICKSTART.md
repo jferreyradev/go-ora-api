@@ -2,29 +2,45 @@
 
 **5 minutos para tener la API funcionando**
 
+> ⚠️ **IMPORTANTE**: Debes especificar `--env` o `--config` (son mutuamente excluyentes)
+
 ---
 
 ## 📥 Instalación (Opción 1: Ejecutable)
 
-### Windows
+### Windows - Opción A: Cargar desde .env
 ```bash
 # 1. Descargar go-oracle-api.exe
-# 2. Crear archivo .env o config.yaml en la misma carpeta
-# 3. Copiar y editar:
+# 2. Crear archivo .env con credenciales Oracle
 cp .env.example .env
-# o crear config.yaml con la misma información
 
-# 4. Ejecutar
-.\go-oracle-api.exe
+# 3. Ejecutar especificando --env
+.\go-oracle-api.exe --env .env
+# o forma corta: .\go-oracle-api.exe -e .env
 ```
 
-**API disponible en:** http://localhost:3000
+### Windows - Opción B: Cargar desde config.yaml
+```bash
+# 1. Descargar go-oracle-api.exe
+# 2. Crear config.yaml con credenciales Oracle
+
+# 3. Ejecutar especificando --config
+.\go-oracle-api.exe --config config.yaml
+# o forma corta: .\go-oracle-api.exe -c config.yaml
+```
+
+**API disponible en:** http://localhost:8080 (o el puerto configurado)
 
 ### Linux/macOS
 ```bash
 # Descargar el binario precompilado
 chmod +x go-oracle-api
-./go-oracle-api
+
+# Opción A: Usar .env
+./go-oracle-api --env .env
+
+# Opción B: Usar config.yaml
+./go-oracle-api --config config.yaml
 ```
 
 ---
@@ -42,25 +58,27 @@ chmod +x go-oracle-api
 git clone https://github.com/tu-usuario/go-oracle-api.git
 cd go-oracle-api
 
-# 2. Copiar y configurar
-cp .env.example .env
-# → Editar .env con tus credenciales Oracle
-#   o crear config.yaml como alternativa
+# 2. Copiar y configurar (elegir UNO)
+cp .env.example .env        # O: crear config.yaml
+# → Editar .env o config.yaml con tus credenciales Oracle
 
 # 3. Compilar (opcional)
 go build -o go-oracle-api.exe
 
-# 4. Ejecutar
-go run main.go
+# 4. Ejecutar (especificar --env O --config)
+go run main.go --env .env
+# o: go run main.go --config config.yaml
 # o usar el ejecutable compilado:
-./go-oracle-api.exe
+# .\go-oracle-api.exe --env .env
+# .\go-oracle-api.exe --config config.yaml
 ```
 
 ---
 
 ## ⚙️ Configuración (.env o config.yaml)
 
-Puedes crear un archivo `.env` en la carpeta del proyecto:
+### Opción A: Usar .env
+Crea un archivo `.env` en la carpeta del proyecto:
 
 ```env
 # Base de datos Oracle
@@ -69,13 +87,50 @@ ORACLE_PASSWORD=tu_contraseña
 ORACLE_HOST=localhost
 ORACLE_PORT=1521
 ORACLE_SERVICE=tu_servicio
+ORACLE_CONNECTION_TIMEOUT=30
+ORACLE_PROXY_SCHEMA=tu_schema_proxy
 
 # Seguridad
 API_TOKEN=token_seguro_123
 API_ALLOWED_IPS=127.0.0.1,::1,localhost
 
 # Puerto de escucha
-PORT=3000
+PORT=8080
+```
+
+Luego ejecuta:
+```bash
+go run main.go --env .env
+```
+
+### Opción B: Usar config.yaml
+Crea un archivo `config.yaml` en la carpeta del proyecto:
+
+```yaml
+oracle:
+  user: tu_usuario
+  password: tu_contraseña
+  host: localhost
+  port: 1521
+  service: tu_servicio
+  connection_timeout: "30"
+  proxy_schema: tu_schema_proxy
+
+api:
+  token: token_seguro_123
+  allowed_ips:
+    - 127.0.0.1
+    - ::1
+    - localhost
+  no_auth: false
+
+server:
+  port: 8080
+```
+
+Luego ejecuta:
+```bash
+go run main.go --config config.yaml
 ```
 
 O usar `config.yaml` como alternativa:
