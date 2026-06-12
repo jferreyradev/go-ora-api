@@ -1,0 +1,1066 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>go-ora-api · Testing Panel</title>
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #1a1d27;
+  --surface2: #242836;
+  --border: #2e3348;
+  --text: #e4e6f0;
+  --text2: #9498b0;
+  --accent: #6c8cff;
+  --accent-hover: #8ba4ff;
+  --green: #4ade80;
+  --yellow: #facc15;
+  --red: #f87171;
+  --radius: 8px;
+  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --mono: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', monospace;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+header h1 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--accent);
+  white-space: nowrap;
+}
+.config-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex: 1;
+  justify-content: flex-end;
+}
+.config-group label {
+  font-size: 12px;
+  color: var(--text2);
+  white-space: nowrap;
+}
+.config-group input {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 6px 10px;
+  color: var(--text);
+  font-size: 13px;
+  font-family: var(--mono);
+  width: 200px;
+  outline: none;
+  transition: border-color .2s;
+}
+.config-group input:focus { border-color: var(--accent); }
+.config-group input[type="password"] { width: 180px; }
+.config-group button {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background .2s;
+}
+.config-group button:hover { background: var(--accent-hover); }
+.toggle-token {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 6px 8px;
+  color: var(--text2);
+  cursor: pointer;
+  font-size: 13px;
+  transition: background .2s;
+}
+.toggle-token:hover { background: var(--border); }
+nav {
+  background: var(--surface);
+  display: flex;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--border);
+  padding: 0 20px;
+  gap: 2px;
+}
+nav button {
+  background: transparent;
+  border: none;
+  color: var(--text2);
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color .2s, border-color .2s;
+  white-space: nowrap;
+  font-family: var(--font);
+}
+nav button:hover { color: var(--text); }
+nav button.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+main {
+  flex: 1;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+}
+.tab-content { display: none; flex-direction: column; gap: 16px; }
+.tab-content.active { display: flex; }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+.card h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: var(--text);
+}
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.form-group label {
+  font-size: 12px;
+  color: var(--text2);
+  font-weight: 500;
+}
+.form-group input,
+.form-group textarea,
+.form-group select {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  color: var(--text);
+  font-size: 13px;
+  font-family: var(--mono);
+  outline: none;
+  transition: border-color .2s;
+}
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus { border-color: var(--accent); }
+.form-group textarea {
+  min-height: 80px;
+  resize: vertical;
+  font-family: var(--mono);
+  line-height: 1.5;
+}
+.form-row {
+  display: flex;
+  gap: 10px;
+  align-items: end;
+  flex-wrap: wrap;
+}
+.form-row .form-group { flex: 1; min-width: 120px; }
+.btn {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background .2s;
+  font-family: var(--font);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.btn:hover { background: var(--accent-hover); }
+.btn-sm {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+.btn-green { background: #22c55e; }
+.btn-green:hover { background: #16a34a; }
+.btn-red { background: var(--red); }
+.btn-red:hover { background: #ef4444; }
+.btn-yellow { background: var(--yellow); color: #000; }
+.btn-yellow:hover { background: #eab308; }
+.btn-outline {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text2);
+}
+.btn-outline:hover { background: var(--surface2); color: var(--text); }
+.response-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.response-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 16px;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.response-header .status { font-weight: 600; }
+.response-header .status.ok { color: var(--green); }
+.response-header .status.warn { color: var(--yellow); }
+.response-header .status.err { color: var(--red); }
+.response-header .time { color: var(--text2); }
+.response-body {
+  padding: 16px;
+  overflow-x: auto;
+  max-height: 400px;
+  overflow-y: auto;
+}
+.response-body pre {
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: var(--text);
+}
+.response-body .empty { color: var(--text2); font-style: italic; }
+.params-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.param-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  background: var(--surface2);
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+.param-row input,
+.param-row select {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 5px 8px;
+  color: var(--text);
+  font-size: 12px;
+  font-family: var(--mono);
+  outline: none;
+  min-width: 80px;
+  flex: 1;
+}
+.param-row input:focus,
+.param-row select:focus { border-color: var(--accent); }
+.param-row .param-name { min-width: 100px; }
+.param-row .param-value { min-width: 100px; }
+.param-row .param-type { min-width: 80px; }
+.param-row .param-dir { min-width: 80px; }
+.param-row .btn-remove {
+  background: transparent;
+  border: none;
+  color: var(--red);
+  cursor: pointer;
+  font-size: 16px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: background .2s;
+}
+.param-row .btn-remove:hover { background: rgba(248,113,113,.15); }
+.btn-add-param {
+  background: var(--surface2);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 8px;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: center;
+  transition: background .2s, border-color .2s;
+  font-family: var(--font);
+}
+.btn-add-param:hover { background: var(--border); border-color: var(--accent); }
+.job-progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+.progress-bar {
+  flex: 1;
+  height: 8px;
+  background: var(--bg);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.progress-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 4px;
+  transition: width .5s ease;
+}
+.progress-label {
+  font-size: 12px;
+  color: var(--text2);
+  min-width: 60px;
+  text-align: right;
+}
+.jobs-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.jobs-table th {
+  text-align: left;
+  padding: 8px 10px;
+  background: var(--surface2);
+  color: var(--text2);
+  font-weight: 500;
+  border-bottom: 1px solid var(--border);
+}
+.jobs-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+.jobs-table tr:hover td { background: var(--surface2); }
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 500;
+}
+.badge-pending { background: rgba(250,204,21,.15); color: var(--yellow); }
+.badge-running { background: rgba(108,140,255,.15); color: var(--accent); }
+.badge-completed { background: rgba(74,222,128,.15); color: var(--green); }
+.badge-failed { background: rgba(248,113,113,.15); color: var(--red); }
+.filter-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.filter-row select {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 6px 10px;
+  color: var(--text);
+  font-size: 12px;
+  font-family: var(--font);
+  outline: none;
+}
+.filter-row select:focus { border-color: var(--accent); }
+.file-upload-wrapper {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.file-upload-wrapper input[type="file"] {
+  background: var(--surface2);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 8px;
+  color: var(--text2);
+  font-size: 12px;
+  flex: 1;
+  cursor: pointer;
+}
+.file-upload-wrapper input[type="file"]::file-selector-button {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 10px;
+  color: var(--text);
+  font-size: 12px;
+  cursor: pointer;
+  margin-right: 8px;
+}
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 768px) {
+  .two-col { grid-template-columns: 1fr; }
+  .config-group input { width: 100%; }
+  header { flex-direction: column; align-items: stretch; }
+  .config-group { justify-content: stretch; }
+}
+.spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin .6s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>◈ go-ora-api</h1>
+  <div class="config-group">
+    <label>Base URL</label>
+    <input id="baseUrl" value="http://localhost:3000" placeholder="http://localhost:3000">
+    <label>Token</label>
+    <input id="apiToken" type="password" value="test1" placeholder="API Token">
+    <button class="toggle-token" id="toggleToken" title="Mostrar/ocultar token">👁</button>
+    <button id="saveConfig">Guardar</button>
+  </div>
+</header>
+
+<nav id="tabs">
+  <button class="active" data-tab="ping">Ping</button>
+  <button data-tab="health">Health</button>
+  <button data-tab="query">Query</button>
+  <button data-tab="exec">Exec</button>
+  <button data-tab="procedure">Procedure</button>
+  <button data-tab="async">Async Job</button>
+  <button data-tab="jobs">Jobs</button>
+  <button data-tab="upload">Upload</button>
+  <button data-tab="download">Download</button>
+  <button data-tab="logs">Logs</button>
+</nav>
+
+<main>
+
+<!-- ===== PING ===== -->
+<div class="tab-content active" id="tab-ping">
+  <div class="card">
+    <h3>GET /ping</h3>
+    <p style="color:var(--text2);font-size:13px;margin-bottom:12px;">Verifica si la API está activa y conectada a Oracle.</p>
+    <button class="btn btn-green" onclick="callPing()">▶ Ping</button>
+  </div>
+  <div id="response-ping" class="response-panel" style="display:none;"></div>
+</div>
+
+<!-- ===== HEALTH ===== -->
+<div class="tab-content" id="tab-health">
+  <div class="card">
+    <h3>GET /health</h3>
+    <p style="color:var(--text2);font-size:13px;margin-bottom:12px;">Estado detallado del sistema (no requiere autenticación).</p>
+    <button class="btn btn-green" onclick="callHealth()">▶ Health</button>
+  </div>
+  <div id="response-health" class="response-panel" style="display:none;"></div>
+</div>
+
+<!-- ===== QUERY ===== -->
+<div class="tab-content" id="tab-query">
+  <div class="card">
+    <h3>POST /query</h3>
+    <div class="form-group">
+      <label>SQL Query (SELECT)</label>
+      <textarea id="querySql" placeholder="SELECT * FROM dual">SELECT USER, SYSDATE FROM DUAL</textarea>
+    </div>
+    <button class="btn btn-green" onclick="callQuery()">▶ Ejecutar</button>
+  </div>
+  <div id="response-query" class="response-panel" style="display:none;"></div>
+</div>
+
+<!-- ===== EXEC ===== -->
+<div class="tab-content" id="tab-exec">
+  <div class="card">
+    <h3>POST /exec</h3>
+    <div class="form-group">
+      <label>SQL (INSERT / UPDATE / DELETE / DDL)</label>
+      <textarea id="execSql" placeholder="INSERT INTO tabla (id, nombre) VALUES (1, 'test')"></textarea>
+    </div>
+    <button class="btn btn-green" onclick="callExec()">▶ Ejecutar</button>
+  </div>
+  <div id="response-exec" class="response-panel" style="display:none;"></div>
+</div>
+
+<!-- ===== PROCEDURE ===== -->
+<div class="tab-content" id="tab-procedure">
+  <div class="card">
+    <h3>POST /procedure</h3>
+    <div class="two-col">
+      <div class="form-group">
+        <label>Nombre del procedimiento/función</label>
+        <input id="procName" placeholder="MI_PACKAGE.MI_PROC">
+      </div>
+      <div class="form-group">
+        <label>Schema (opcional)</label>
+        <input id="procSchema" placeholder="WORKFLOW">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>
+        <input type="checkbox" id="procIsFunction">
+        Es función (isFunction)
+      </label>
+    </div>
+    <label style="font-size:12px;color:var(--text2);font-weight:500;display:block;margin-bottom:8px;">Parámetros</label>
+    <div class="params-container" id="procParams"></div>
+    <button class="btn-add-param" onclick="addProcParam()">+ Agregar parámetro</button>
+    <div style="margin-top:12px;">
+      <button class="btn btn-green" onclick="callProcedure()">▶ Ejecutar</button>
+    </div>
+  </div>
+  <div id="response-procedure" class="response-panel" style="display:none;"></div>
+</div>
+
+<!-- ===== ASYNC JOB ===== -->
+<div class="tab-content" id="tab-async">
+  <div class="card">
+    <h3>POST /procedure/async</h3>
+    <div class="two-col">
+      <div class="form-group">
+        <label>Nombre del procedimiento</label>
+        <input id="asyncName" placeholder="PKG_TEST.TEST_DEMORA_QUERY">
+      </div>
+      <div class="form-group">
+        <label>Schema (opcional)</label>
+        <input id="asyncSchema" placeholder="WORKFLOW">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>
+        <input type="checkbox" id="asyncIsFunction">
+        Es función
+      </label>
+    </div>
+    <div class="two-col">
+      <div class="form-group">
+        <label>Modo de ejecución</label>
+        <select id="asyncMode">
+          <option value="">Por defecto</option>
+          <option value="sequential">Sequential</option>
+          <option value="parallel">Parallel</option>
+          <option value="exclusive">Exclusive</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Lock Key (opcional)</label>
+        <input id="asyncLockKey" placeholder="PROC_LARGO">
+      </div>
+    </div>
+    <label style="font-size:12px;color:var(--text2);font-weight:500;display:block;margin-bottom:8px;">Parámetros</label>
+    <div class="params-container" id="asyncParams"></div>
+    <button class="btn-add-param" onclick="addAsyncParam()">+ Agregar parámetro</button>
+    <div style="margin-top:12px;">
+      <button class="btn btn-green" onclick="callAsync()">▶ Crear Job</button>
+    </div>
+  </div>
+  <div id="response-async" class="response-panel" style="display:none;"></div>
+</div>
+
+<!-- ===== JOBS ===== -->
+<div class="tab-content" id="tab-jobs">
+  <div class="card">
+    <h3>GET /jobs · DELETE /jobs</h3>
+    <div class="filter-row">
+      <select id="jobsFilter">
+        <option value="">Todos los estados</option>
+        <option value="pending">Pending</option>
+        <option value="running">Running</option>
+        <option value="completed">Completed</option>
+        <option value="failed">Failed</option>
+      </select>
+      <button class="btn btn-sm btn-outline" onclick="loadJobs()">⟳ Refrescar</button>
+      <button class="btn btn-sm btn-red" onclick="deleteCompletedJobs()">🗑 Limpiar completados</button>
+    </div>
+    <div id="jobsContent"><p class="empty" style="color:var(--text2);font-style:italic;">Presiona "Refrescar" para cargar jobs.</p></div>
+  </div>
+  <div id="response-jobs" class="response-panel" style="display:none;"></div>
+</div>
+
+<!-- ===== UPLOAD ===== -->
+<div class="tab-content" id="tab-upload">
+  <div class="card">
+    <h3>POST /upload</h3>
+    <div class="form-group">
+      <label>Descripción</label>
+      <input id="uploadDesc" placeholder="Archivo de prueba">
+    </div>
+    <div class="form-group">
+      <label>Archivo</label>
+      <div class="file-upload-wrapper">
+        <input type="file" id="uploadFile">
+      </div>
+    </div>
+    <button class="btn btn-green" onclick="callUpload()">▶ Subir</button>
+  </div>
+  <div id="response-upload" class="response-panel" style="display:none;"></div>
+</div>
+
+<!-- ===== DOWNLOAD ===== -->
+<div class="tab-content" id="tab-download">
+  <div class="card">
+    <h3>GET /download</h3>
+    <div class="form-group">
+      <label>Blob ID</label>
+      <input id="downloadBlobId" placeholder="12345">
+    </div>
+    <button class="btn btn-green" onclick="callDownload()">▶ Descargar</button>
+  </div>
+  <div id="response-download" class="response-panel" style="display:none;"></div>
+</div>
+
+<!-- ===== LOGS ===== -->
+<div class="tab-content" id="tab-logs">
+  <div class="card">
+    <h3>GET /logs</h3>
+    <div class="filter-row">
+      <label style="color:var(--text2);font-size:12px;">Límite</label>
+      <input id="logsLimit" type="number" value="10" style="width:80px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:6px 10px;color:var(--text);font-size:12px;outline:none;">
+      <button class="btn btn-sm btn-outline" onclick="callLogs()">⟳ Cargar</button>
+    </div>
+  </div>
+  <div id="response-logs" class="response-panel" style="display:none;"></div>
+</div>
+
+</main>
+
+<script>
+// ==================== CONFIG ====================
+function loadConfig() {
+  const url = localStorage.getItem('goApiUrl');
+  const token = localStorage.getItem('goApiToken');
+  if (url) document.getElementById('baseUrl').value = url;
+  if (token) document.getElementById('apiToken').value = token;
+}
+function saveConfig() {
+  localStorage.setItem('goApiUrl', document.getElementById('baseUrl').value);
+  localStorage.setItem('goApiToken', document.getElementById('apiToken').value);
+}
+document.getElementById('saveConfig').addEventListener('click', saveConfig);
+document.getElementById('toggleToken').addEventListener('click', () => {
+  const inp = document.getElementById('apiToken');
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+});
+loadConfig();
+
+function getBase() { return document.getElementById('baseUrl').value.replace(/\/+$/, ''); }
+function getToken() { return document.getElementById('apiToken').value; }
+function headers(extra) {
+  const h = { 'Content-Type': 'application/json' };
+  const t = getToken();
+  if (t) h['Authorization'] = 'Bearer ' + t;
+  return { ...h, ...extra };
+}
+
+// ==================== TABS ====================
+document.querySelectorAll('#tabs button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#tabs button').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+// ==================== REQUEST HELPER ====================
+async function apiCall(method, path, body, extraHeaders) {
+  const url = getBase() + path;
+  const opts = { method, headers: headers(extraHeaders) };
+  if (body !== undefined && body !== null) opts.body = typeof body === 'string' ? body : JSON.stringify(body);
+  const start = performance.now();
+  let res, data, err;
+  try {
+    res = await fetch(url, opts);
+    const ct = res.headers.get('content-type') || '';
+    if (ct.includes('json')) data = await res.json();
+    else data = await res.text();
+  } catch (e) {
+    err = e.message;
+  }
+  const time = Math.round(performance.now() - start);
+  return { res, data, err, time };
+}
+
+function showResponse(containerId, result) {
+  const el = document.getElementById(containerId);
+  el.style.display = '';
+  const { res, data, err, time } = result;
+  let statusClass = 'ok';
+  let statusText = '';
+  if (err) {
+    statusClass = 'err';
+    statusText = 'Error de red';
+  } else {
+    const code = res.status;
+    statusText = code + ' ' + (res.statusText || '');
+    if (code >= 200 && code < 300) statusClass = 'ok';
+    else if (code >= 400 && code < 500) statusClass = 'warn';
+    else statusClass = 'err';
+  }
+  const bodyHtml = err
+    ? '<span class="empty">' + escapeHtml(err) + '</span>'
+    : (data !== undefined && data !== null
+        ? '<pre>' + syntaxHighlight(typeof data === 'string' ? data : JSON.stringify(data, null, 2)) + '</pre>'
+        : '<span class="empty">(sin contenido)</span>');
+  el.innerHTML = `
+    <div class="response-header">
+      <span class="status ${statusClass}">${escapeHtml(statusText)}</span>
+      <span class="time">${time}ms</span>
+    </div>
+    <div class="response-body">${bodyHtml}</div>
+  `;
+}
+
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function syntaxHighlight(json) {
+  return json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"([^"]+)":/g, '<span style="color:#6c8cff;">"$1"</span>:')
+    .replace(/"([^"]+)"(?=\s*[,}\]])/g, '<span style="color:#facc15;">"$1"</span>')
+    .replace(/\b(true|false)\b/g, '<span style="color:#4ade80;">$1</span>')
+    .replace(/\b(null)\b/g, '<span style="color:#f87171;">$1</span>')
+    .replace(/(\b\d+\.?\d*\b)/g, '<span style="color:#c084fc;">$1</span>');
+}
+
+// ==================== PARAM ROW UTILITY ====================
+function createParamRow(name, value, dir, type, prefix) {
+  const div = document.createElement('div');
+  div.className = 'param-row';
+  div.innerHTML = `
+    <input class="param-name" placeholder="nombre" value="${escapeHtml(name || '')}">
+    <input class="param-value" placeholder="valor" value="${escapeHtml(value !== undefined && value !== null ? value : '')}">
+    <select class="param-dir">
+      <option value="IN" ${dir === 'OUT' ? '' : 'selected'}>IN</option>
+      <option value="OUT" ${dir === 'OUT' ? 'selected' : ''}>OUT</option>
+    </select>
+    <select class="param-type">
+      <option value="STRING" ${(type || 'STRING') === 'STRING' ? 'selected' : ''}>STRING</option>
+      <option value="NUMBER" ${type === 'NUMBER' ? 'selected' : ''}>NUMBER</option>
+      <option value="DATE" ${type === 'DATE' ? 'selected' : ''}>DATE</option>
+    </select>
+    <button class="btn-remove" onclick="this.parentElement.remove()">✕</button>
+  `;
+  return div;
+}
+
+function addProcParam(name, value, dir, type) {
+  const container = document.getElementById('procParams');
+  container.appendChild(createParamRow(name, value, dir, type));
+}
+function addAsyncParam(name, value, dir, type) {
+  const container = document.getElementById('asyncParams');
+  container.appendChild(createParamRow(name, value, dir, type));
+}
+
+function collectParams(containerId) {
+  const params = [];
+  document.querySelectorAll('#' + containerId + ' .param-row').forEach(row => {
+    const p = {
+      name: row.querySelector('.param-name').value.trim(),
+      direction: row.querySelector('.param-dir').value,
+      type: row.querySelector('.param-type').value
+    };
+    const val = row.querySelector('.param-value').value.trim();
+    if (p.direction === 'IN') {
+      p.value = p.type === 'NUMBER' ? (val === '' ? null : Number(val)) : val;
+    }
+    if (p.name) params.push(p);
+  });
+  return params;
+}
+
+// ==================== PING ====================
+async function callPing() {
+  const r = await apiCall('GET', '/ping');
+  showResponse('response-ping', r);
+}
+
+// ==================== HEALTH ====================
+async function callHealth() {
+  const r = await apiCall('GET', '/health');
+  showResponse('response-health', r);
+}
+
+// ==================== QUERY ====================
+async function callQuery() {
+  const sql = document.getElementById('querySql').value;
+  const r = await apiCall('POST', '/query', { query: sql });
+  showResponse('response-query', r);
+}
+
+// ==================== EXEC ====================
+async function callExec() {
+  const sql = document.getElementById('execSql').value;
+  const r = await apiCall('POST', '/exec', { query: sql });
+  showResponse('response-exec', r);
+}
+
+// ==================== PROCEDURE ====================
+async function callProcedure() {
+  const body = { name: document.getElementById('procName').value };
+  const schema = document.getElementById('procSchema').value.trim();
+  if (schema) body.schema = schema;
+  if (document.getElementById('procIsFunction').checked) body.isFunction = true;
+  const params = collectParams('procParams');
+  if (params.length) body.params = params;
+  const r = await apiCall('POST', '/procedure', body);
+  showResponse('response-procedure', r);
+}
+
+// ==================== ASYNC JOB ====================
+let asyncPollingId = null;
+
+async function callAsync() {
+  if (asyncPollingId) { clearInterval(asyncPollingId); asyncPollingId = null; }
+  const body = { name: document.getElementById('asyncName').value };
+  const schema = document.getElementById('asyncSchema').value.trim();
+  if (schema) body.schema = schema;
+  if (document.getElementById('asyncIsFunction').checked) body.isFunction = true;
+  const mode = document.getElementById('asyncMode').value;
+  if (mode) body.execution_mode = mode;
+  const lockKey = document.getElementById('asyncLockKey').value.trim();
+  if (lockKey) body.lock_key = lockKey;
+  const params = collectParams('asyncParams');
+  if (params.length) body.params = params;
+  const r = await apiCall('POST', '/procedure/async', body);
+  showResponse('response-async', r);
+  if (r.res && r.res.status === 202 && r.data && r.data.job_id) {
+    startAsyncPolling(r.data.job_id);
+  }
+}
+
+function startAsyncPolling(jobId) {
+  const container = document.getElementById('response-async');
+  const statusDiv = document.createElement('div');
+  statusDiv.style.marginTop = '12px';
+  statusDiv.innerHTML = `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <span style="font-size:12px;color:var(--text2);">Job: <code style="color:var(--text);">${escapeHtml(jobId)}</code></span>
+        <span id="asyncJobStatus" style="font-size:12px;font-weight:500;">⏳ pending</span>
+      </div>
+      <div class="job-progress">
+        <div class="progress-bar">
+          <div class="progress-bar-fill" id="asyncProgressFill" style="width:0%"></div>
+        </div>
+        <span class="progress-label" id="asyncProgressLabel">0%</span>
+      </div>
+      <div id="asyncJobResult" style="margin-top:8px;font-size:12px;color:var(--text2);"></div>
+    </div>
+  `;
+  container.appendChild(statusDiv);
+  asyncPollingId = setInterval(async () => {
+    const r = await apiCall('GET', '/jobs/' + jobId);
+    if (r.err) {
+      document.getElementById('asyncJobStatus').textContent = '❌ Error';
+      clearInterval(asyncPollingId);
+      asyncPollingId = null;
+      return;
+    }
+    const job = r.data;
+    document.getElementById('asyncJobStatus').textContent = job.status;
+    const pct = job.progress || 0;
+    document.getElementById('asyncProgressFill').style.width = pct + '%';
+    document.getElementById('asyncProgressLabel').textContent = pct + '%';
+    if (job.status === 'completed' || job.status === 'failed') {
+      clearInterval(asyncPollingId);
+      asyncPollingId = null;
+      const resultDiv = document.getElementById('asyncJobResult');
+      if (job.status === 'completed') {
+        resultDiv.innerHTML = '<span style="color:var(--green);">✅ Completado</span>';
+        if (job.result) {
+          resultDiv.innerHTML += '<pre style="margin-top:8px;font-size:12px;">' + syntaxHighlight(JSON.stringify(job.result, null, 2)) + '</pre>';
+        }
+      } else {
+        resultDiv.innerHTML = '<span style="color:var(--red);">❌ Falló: ' + escapeHtml(job.error || '') + '</span>';
+      }
+    }
+  }, 2000);
+}
+
+// ==================== JOBS ====================
+async function loadJobs() {
+  const status = document.getElementById('jobsFilter').value;
+  let path = '/jobs';
+  if (status) path += '?status=' + encodeURIComponent(status);
+  const r = await apiCall('GET', path);
+  showResponse('response-jobs', r);
+  if (r.data && r.data.jobs) {
+    renderJobsTable(r.data.jobs);
+  }
+}
+
+function renderJobsTable(jobs) {
+  const container = document.getElementById('jobsContent');
+  if (!jobs.length) {
+    container.innerHTML = '<p style="color:var(--text2);font-style:italic;">No hay jobs.</p>';
+    return;
+  }
+  let html = `<table class="jobs-table">
+    <thead><tr>
+      <th>Job ID</th>
+      <th>Nombre</th>
+      <th>Estado</th>
+      <th>Progreso</th>
+      <th>Acción</th>
+    </tr></thead><tbody>`;
+  jobs.forEach(j => {
+    const badge = 'badge-' + (j.status || 'pending');
+    html += `<tr>
+      <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;" title="${escapeHtml(j.job_id || '')}">${escapeHtml((j.job_id || '').substring(0, 20))}...</td>
+      <td>${escapeHtml(j.name || '')}</td>
+      <td><span class="badge ${badge}">${escapeHtml(j.status || 'pending')}</span></td>
+      <td>${j.progress !== undefined && j.progress !== null ? j.progress + '%' : '-'}</td>
+      <td><button class="btn btn-sm btn-red" onclick="deleteJob('${escapeHtml(j.job_id)}')">🗑</button></td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+async function deleteJob(jobId) {
+  const r = await apiCall('DELETE', '/jobs/' + jobId);
+  showResponse('response-jobs', r);
+  loadJobs();
+}
+
+async function deleteCompletedJobs() {
+  const r = await apiCall('DELETE', '/jobs?status=completed');
+  showResponse('response-jobs', r);
+  loadJobs();
+}
+
+// ==================== UPLOAD ====================
+async function callUpload() {
+  const fileInput = document.getElementById('uploadFile');
+  const desc = document.getElementById('uploadDesc').value;
+  if (!fileInput.files.length) {
+    document.getElementById('response-upload').style.display = '';
+    document.getElementById('response-upload').innerHTML = `
+      <div class="response-header"><span class="status warn">Selecciona un archivo</span></div>
+    `;
+    return;
+  }
+  const fd = new FormData();
+  fd.append('file', fileInput.files[0]);
+  if (desc) fd.append('descripcion', desc);
+  const url = getBase() + '/upload';
+  const t = getToken();
+  const h = {};
+  if (t) h['Authorization'] = 'Bearer ' + t;
+  const start = performance.now();
+  let res, data, err;
+  try {
+    res = await fetch(url, { method: 'POST', headers: h, body: fd });
+    const ct = res.headers.get('content-type') || '';
+    if (ct.includes('json')) data = await res.json();
+    else data = await res.text();
+  } catch (e) { err = e.message; }
+  const time = Math.round(performance.now() - start);
+  showResponse('response-upload', { res, data, err, time });
+}
+
+// ==================== DOWNLOAD ====================
+async function callDownload() {
+  const blobId = document.getElementById('downloadBlobId').value.trim();
+  if (!blobId) {
+    document.getElementById('response-download').style.display = '';
+    document.getElementById('response-download').innerHTML = `
+      <div class="response-header"><span class="status warn">Ingresa un Blob ID</span></div>
+    `;
+    return;
+  }
+  const url = getBase() + '/download?blob_id=' + encodeURIComponent(blobId);
+  const t = getToken();
+  const h = {};
+  if (t) h['Authorization'] = 'Bearer ' + t;
+  const start = performance.now();
+  let res, err;
+  try {
+    res = await fetch(url, { method: 'GET', headers: h });
+    if (!res.ok) {
+      const ct = res.headers.get('content-type') || '';
+      const data = ct.includes('json') ? await res.json() : await res.text();
+      const time = Math.round(performance.now() - start);
+      showResponse('response-download', { res, data, err: null, time });
+      return;
+    }
+    const blob = await res.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    const cd = res.headers.get('content-disposition') || '';
+    const match = cd.match(/filename="?(.+?)"?$/);
+    a.download = match ? match[1] : 'download_' + blobId;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    const time = Math.round(performance.now() - start);
+    showResponse('response-download', { res, data: { status: 'ok', message: 'Descarga iniciada', size: blob.size }, err: null, time });
+  } catch (e) {
+    err = e.message;
+    const time = Math.round(performance.now() - start);
+    showResponse('response-download', { res: null, data: null, err, time });
+  }
+}
+
+// ==================== LOGS ====================
+async function callLogs() {
+  const limit = document.getElementById('logsLimit').value || 10;
+  const r = await apiCall('GET', '/logs?limit=' + encodeURIComponent(limit));
+  showResponse('response-logs', r);
+  if (r.data && r.data.logs && Array.isArray(r.data.logs)) {
+    const el = document.getElementById('response-logs');
+    const table = document.createElement('div');
+    table.style.marginTop = '12px';
+    let html = `<table class="jobs-table"><thead><tr><th>#</th><th>Log</th></tr></thead><tbody>`;
+    r.data.logs.forEach((log, i) => {
+      html += `<tr><td>${i + 1}</td><td>${escapeHtml(typeof log === 'string' ? log : JSON.stringify(log))}</td></tr>`;
+    });
+    html += '</tbody></table>';
+    table.innerHTML = html;
+    el.querySelector('.response-body').after(table);
+  }
+}
+
+// ==================== INIT ====================
+addProcParam('p_input', 'Hola', 'IN', 'STRING');
+addProcParam('p_output', '', 'OUT', 'STRING');
+addAsyncParam('segundos', '5', 'IN', 'NUMBER');
+</script>
+
+</body>
+</html>
